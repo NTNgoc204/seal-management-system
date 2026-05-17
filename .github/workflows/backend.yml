@@ -1,0 +1,107 @@
+name: Backend CI/CD
+
+on:
+  # Run CI on PRs that change backend code or this workflow file
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "server/**"
+      - ".github/workflows/backend.yml"
+
+  # Run CI/CD on pushes to main/develop when backend changed
+  push:
+    branches: [main, develop]
+    paths:
+      - "server/**"
+      - ".github/workflows/backend.yml"
+
+  # Allow manual run from GitHub Actions tab
+  workflow_dispatch:
+
+# Minimal permissions for this workflow
+permissions:
+  contents: read
+
+# Cancel old runs on the same branch to save runner minutes
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      # Checkout repository source code
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      # Install stable Node.js LTS
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Use npm ci when lockfile exists for reproducible installs.
+      # Fallback to npm install if lockfile is missing.
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      # Run lint only when lint script exists
+      - name: Run lint (if available)
+        run: |
+          if node -e "const s=require('./package.json').scripts||{}; process.exit(s.lint ? 0 : 1)"; then
+            npm run lint
+          else
+            echo "No lint script found in server/package.json -> skip."
+          fi
+
+      # Run tests only when test script exists
+      - name: Run tests (if available)
+        run: |
+          if node -e "const s=require('./package.json').scripts||{}; process.exit(s.test ? 0 : 1)"; then
+            npm test
+          else
+            echo "No test script found in server/package.json -> skip."
+          fi
+
+      # Smoke test: start server and verify "/" responds
+      - name: Smoke test server startup
+        run: |
+          npm start &
+          APP_PID=$!
+          trap "kill $APP_PID" EXIT
+          sleep 5
+          curl --fail http://127.0.0.1:${PORT:-3000}/
+
+  backend-cd:
+    name: Backend CD (Render Deploy Hook)
+    needs: backend-ci
+    runs-on: ubuntu-latest
+    # Deploy only on direct pushes to main (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      # Trigger deploy via Render Deploy Hook (stored in GitHub Secrets)
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Missing secret: RENDER_DEPLOY_HOOK_URL"
+            echo "Add it at: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+          curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "Render deploy triggered successfully."
