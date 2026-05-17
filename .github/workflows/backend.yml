@@ -1,4 +1,4 @@
-name: Backend CI/CD
+name: Backend CI
 
 on:
   # Run CI on PRs that change backend code or this workflow file
@@ -8,7 +8,7 @@ on:
       - "server/**"
       - ".github/workflows/backend.yml"
 
-  # Run CI/CD on pushes to main/develop when backend changed
+  # Run CI on pushes to main/develop when backend changed
   push:
     branches: [main, develop]
     paths:
@@ -83,25 +83,28 @@ jobs:
           sleep 5
           curl --fail http://127.0.0.1:${PORT:-3000}/
 
-  backend-cd:
-    name: Backend CD (Render Deploy Hook)
-    needs: backend-ci
-    runs-on: ubuntu-latest
-    # Deploy only on direct pushes to main (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      # Trigger deploy via Render Deploy Hook (stored in GitHub Secrets)
-      - name: Trigger Render deploy hook
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-            echo "Missing secret: RENDER_DEPLOY_HOOK_URL"
-            echo "Add it at: Settings -> Secrets and variables -> Actions"
-            exit 1
-          fi
-
-          curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
-          echo "Render deploy triggered successfully."
+  # CD is intentionally disabled for now because deploy is not ready yet.
+  # Uncomment this job later when you deploy backend to Render.
+  #
+  # backend-cd:
+  #   name: Backend CD (Render Deploy Hook)
+  #   needs: backend-ci
+  #   runs-on: ubuntu-latest
+  #   # Deploy only on direct pushes to main (not PRs)
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   environment: production
+  #
+  #   steps:
+  #     # Trigger deploy via Render Deploy Hook (stored in GitHub Secrets)
+  #     - name: Trigger Render deploy hook
+  #       env:
+  #         RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+  #       run: |
+  #         if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+  #           echo "Missing secret: RENDER_DEPLOY_HOOK_URL"
+  #           echo "Add it at: Settings -> Secrets and variables -> Actions"
+  #           exit 1
+  #         fi
+  #
+  #         curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
+  #         echo "Render deploy triggered successfully."

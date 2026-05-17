@@ -1,4 +1,4 @@
-name: Frontend CI/CD
+name: Frontend CI
 
 on:
   # Run CI on PRs that touch frontend code or this workflow
@@ -8,7 +8,7 @@ on:
       - "client/**"
       - ".github/workflows/frontend.yml"
 
-  # Run CI/CD on pushes to main/develop when frontend changed
+  # Run CI on pushes to main/develop when frontend changed
   push:
     branches: [main, develop]
     paths:
@@ -18,11 +18,9 @@ on:
   # Allow manual runs from Actions tab
   workflow_dispatch:
 
-# Permissions required for GitHub Pages deployment
+# Minimal permissions for CI only
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Cancel older runs on same branch to avoid duplicate pipelines
 concurrency:
@@ -48,10 +46,12 @@ jobs:
         with:
           node-version: 22
 
-      # Configure GitHub Pages metadata used by deploy action
-      - name: Configure GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/configure-pages@v5
+      # CD is disabled for now, so no Pages setup is required here.
+      # Re-enable below block when you deploy frontend to GitHub Pages.
+      #
+      # - name: Configure GitHub Pages
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   uses: actions/configure-pages@v5
 
       # Install dependencies (prefer npm ci when lockfile exists)
       - name: Install dependencies
@@ -70,25 +70,30 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      # Upload dist/ as artifact for deploy job
-      - name: Upload build artifact for GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: client/dist
+      # CD is disabled for now, so artifact upload is skipped.
+      # Re-enable below block when frontend deploy starts.
+      #
+      # - name: Upload build artifact for GitHub Pages
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   uses: actions/upload-pages-artifact@v3
+      #   with:
+      #     path: client/dist
 
-  frontend-cd:
-    name: Frontend CD (GitHub Pages)
-    needs: frontend-ci
-    runs-on: ubuntu-latest
-    # Deploy only on pushes to main
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      # Deploy uploaded artifact to GitHub Pages
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+  # CD is intentionally disabled for now because deploy is not ready yet.
+  # Uncomment this job later when you deploy frontend to GitHub Pages.
+  #
+  # frontend-cd:
+  #   name: Frontend CD (GitHub Pages)
+  #   needs: frontend-ci
+  #   runs-on: ubuntu-latest
+  #   # Deploy only on pushes to main
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   environment:
+  #     name: github-pages
+  #     url: ${{ steps.deployment.outputs.page_url }}
+  #
+  #   steps:
+  #     # Deploy uploaded artifact to GitHub Pages
+  #     - name: Deploy to GitHub Pages
+  #       id: deployment
+  #       uses: actions/deploy-pages@v4
