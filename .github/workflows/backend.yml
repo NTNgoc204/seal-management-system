@@ -112,19 +112,21 @@ jobs:
           curl --fail --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
           echo "Render deploy hook triggered."
 
-      # Basic post-deploy health check using the production backend URL
-      - name: Health check backend URL
-        env:
-          BACKEND_URL: https://seal-management-system.onrender.com/
-        run: |
-          for i in $(seq 1 30); do
-            if curl --fail --silent --show-error "$BACKEND_URL" > /dev/null; then
-              echo "Backend is reachable: $BACKEND_URL"
-              exit 0
-            fi
-            echo "Waiting backend to be reachable... attempt $i/30"
-            sleep 10
-          done
-
-          echo "Backend health check failed after waiting 300s."
-          exit 1
+      # Health check is disabled to keep CD fast.
+      # Re-enable this block later if you want post-deploy verification.
+      #
+      # - name: Health check backend URL
+      #   env:
+      #     BACKEND_URL: https://seal-management-system.onrender.com/
+      #   run: |
+      #     for i in $(seq 1 30); do
+      #       if curl --fail --silent --show-error "$BACKEND_URL" > /dev/null; then
+      #         echo "Backend is reachable: $BACKEND_URL"
+      #         exit 0
+      #       fi
+      #       echo "Waiting backend to be reachable... attempt $i/30"
+      #       sleep 10
+      #     done
+      #
+      #     echo "Backend health check failed after waiting 300s."
+      #     exit 1

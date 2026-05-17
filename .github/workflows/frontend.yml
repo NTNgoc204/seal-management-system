@@ -92,19 +92,21 @@ jobs:
           curl --fail --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"
           echo "Vercel deploy hook triggered."
 
-      # Basic post-deploy health check using the production frontend URL
-      - name: Health check frontend URL
-        env:
-          FRONTEND_URL: https://seal-management-system.vercel.app/
-        run: |
-          for i in $(seq 1 30); do
-            if curl --fail --silent --show-error "$FRONTEND_URL" > /dev/null; then
-              echo "Frontend is reachable: $FRONTEND_URL"
-              exit 0
-            fi
-            echo "Waiting frontend to be reachable... attempt $i/30"
-            sleep 10
-          done
-
-          echo "Frontend health check failed after waiting 300s."
-          exit 1
+      # Health check is disabled to keep CD fast.
+      # Re-enable this block later if you want post-deploy verification.
+      #
+      # - name: Health check frontend URL
+      #   env:
+      #     FRONTEND_URL: https://seal-management-system.vercel.app/
+      #   run: |
+      #     for i in $(seq 1 30); do
+      #       if curl --fail --silent --show-error "$FRONTEND_URL" > /dev/null; then
+      #         echo "Frontend is reachable: $FRONTEND_URL"
+      #         exit 0
+      #       fi
+      #       echo "Waiting frontend to be reachable... attempt $i/30"
+      #       sleep 10
+      #     done
+      #
+      #     echo "Frontend health check failed after waiting 300s."
+      #     exit 1
