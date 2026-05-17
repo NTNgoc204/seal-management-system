@@ -91,8 +91,10 @@ jobs:
     name: Backend CD (Render Deploy Hook)
     needs: backend-ci
     runs-on: ubuntu-latest
-    # Deploy only on direct pushes to main (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Deploy when:
+    # 1) code is merged/pushed to main, OR
+    # 2) workflow is started manually from Actions tab
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     environment: production
 
     steps:
