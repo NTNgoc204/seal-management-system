@@ -8,7 +8,7 @@ on:
       - "server/**"
       - ".github/workflows/backend.yml"
 
-  # Run CI/CD on pushes to main/develop when backend changed
+  # Run CI on pushes to main/develop when backend changed
   push:
     branches: [main, develop]
     paths:
@@ -21,6 +21,10 @@ on:
 # Minimal permissions for this workflow
 permissions:
   contents: read
+
+# Opt in JavaScript-based actions to Node.js 24 runtime on GitHub runners
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 # Cancel old runs on the same branch to save runner minutes
 concurrency:
@@ -87,8 +91,10 @@ jobs:
     name: Backend CD (Render Deploy Hook)
     needs: backend-ci
     runs-on: ubuntu-latest
-    # Deploy only on direct pushes to main (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Deploy when:
+    # 1) code is merged/pushed to main, OR
+    # 2) workflow is started manually from Actions tab
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     environment: production
 
     steps:
@@ -99,9 +105,28 @@ jobs:
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "Missing secret: RENDER_DEPLOY_HOOK_URL"
-            echo "Add it at: Settings -> Secrets and variables -> Actions"
+            echo "Create it at: Settings -> Secrets and variables -> Actions"
             exit 1
           fi
 
-          curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
-          echo "Render deploy triggered successfully."
+          curl --fail --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "Render deploy hook triggered."
+
+      # Health check is disabled to keep CD fast.
+      # Re-enable this block later if you want post-deploy verification.
+      #
+      # - name: Health check backend URL
+      #   env:
+      #     BACKEND_URL: https://seal-management-system.onrender.com/
+      #   run: |
+      #     for i in $(seq 1 30); do
+      #       if curl --fail --silent --show-error "$BACKEND_URL" > /dev/null; then
+      #         echo "Backend is reachable: $BACKEND_URL"
+      #         exit 0
+      #       fi
+      #       echo "Waiting backend to be reachable... attempt $i/30"
+      #       sleep 10
+      #     done
+      #
+      #     echo "Backend health check failed after waiting 300s."
+      #     exit 1
