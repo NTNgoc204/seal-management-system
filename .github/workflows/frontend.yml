@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend CI/CD
 
 on:
   # Run CI on PRs that touch frontend code or this workflow
@@ -18,9 +18,13 @@ on:
   # Allow manual runs from Actions tab
   workflow_dispatch:
 
-# Minimal permissions for CI only
+# Minimal permissions needed for this workflow
 permissions:
   contents: read
+
+# Opt in JavaScript-based actions to Node.js 24 runtime on GitHub runners
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 # Cancel older runs on same branch to avoid duplicate pipelines
 concurrency:
@@ -46,13 +50,6 @@ jobs:
         with:
           node-version: 22
 
-      # CD is disabled for now, so no Pages setup is required here.
-      # Re-enable below block when you deploy frontend to GitHub Pages.
-      #
-      # - name: Configure GitHub Pages
-      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      #   uses: actions/configure-pages@v5
-
       # Install dependencies (prefer npm ci when lockfile exists)
       - name: Install dependencies
         run: |
@@ -70,30 +67,42 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      # CD is disabled for now, so artifact upload is skipped.
-      # Re-enable below block when frontend deploy starts.
-      #
-      # - name: Upload build artifact for GitHub Pages
-      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      #   uses: actions/upload-pages-artifact@v3
-      #   with:
-      #     path: client/dist
+  frontend-cd:
+    name: Frontend CD (Vercel Deploy Hook)
+    needs: frontend-ci
+    runs-on: ubuntu-latest
+    # Deploy only on direct pushes to main (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
 
-  # CD is intentionally disabled for now because deploy is not ready yet.
-  # Uncomment this job later when you deploy frontend to GitHub Pages.
-  #
-  # frontend-cd:
-  #   name: Frontend CD (GitHub Pages)
-  #   needs: frontend-ci
-  #   runs-on: ubuntu-latest
-  #   # Deploy only on pushes to main
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   environment:
-  #     name: github-pages
-  #     url: ${{ steps.deployment.outputs.page_url }}
-  #
-  #   steps:
-  #     # Deploy uploaded artifact to GitHub Pages
-  #     - name: Deploy to GitHub Pages
-  #       id: deployment
-  #       uses: actions/deploy-pages@v4
+    steps:
+      # Trigger deploy via Vercel Deploy Hook (stored in GitHub Secrets)
+      - name: Trigger Vercel deploy hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "Missing secret: VERCEL_DEPLOY_HOOK_URL"
+            echo "Create it at: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+          curl --fail --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"
+          echo "Vercel deploy hook triggered."
+
+      # Basic post-deploy health check using the production frontend URL
+      - name: Health check frontend URL
+        env:
+          FRONTEND_URL: https://seal-management-system.vercel.app/
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error "$FRONTEND_URL" > /dev/null; then
+              echo "Frontend is reachable: $FRONTEND_URL"
+              exit 0
+            fi
+            echo "Waiting frontend to be reachable... attempt $i/30"
+            sleep 10
+          done
+
+          echo "Frontend health check failed after waiting 300s."
+          exit 1

@@ -1,4 +1,4 @@
-name: Backend CI
+name: Backend CI/CD
 
 on:
   # Run CI on PRs that change backend code or this workflow file
@@ -21,6 +21,10 @@ on:
 # Minimal permissions for this workflow
 permissions:
   contents: read
+
+# Opt in JavaScript-based actions to Node.js 24 runtime on GitHub runners
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 # Cancel old runs on the same branch to save runner minutes
 concurrency:
@@ -83,28 +87,42 @@ jobs:
           sleep 5
           curl --fail http://127.0.0.1:${PORT:-3000}/
 
-  # CD is intentionally disabled for now because deploy is not ready yet.
-  # Uncomment this job later when you deploy backend to Render.
-  #
-  # backend-cd:
-  #   name: Backend CD (Render Deploy Hook)
-  #   needs: backend-ci
-  #   runs-on: ubuntu-latest
-  #   # Deploy only on direct pushes to main (not PRs)
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   environment: production
-  #
-  #   steps:
-  #     # Trigger deploy via Render Deploy Hook (stored in GitHub Secrets)
-  #     - name: Trigger Render deploy hook
-  #       env:
-  #         RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-  #       run: |
-  #         if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-  #           echo "Missing secret: RENDER_DEPLOY_HOOK_URL"
-  #           echo "Add it at: Settings -> Secrets and variables -> Actions"
-  #           exit 1
-  #         fi
-  #
-  #         curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
-  #         echo "Render deploy triggered successfully."
+  backend-cd:
+    name: Backend CD (Render Deploy Hook)
+    needs: backend-ci
+    runs-on: ubuntu-latest
+    # Deploy only on direct pushes to main (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      # Trigger deploy via Render Deploy Hook (stored in GitHub Secrets)
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Missing secret: RENDER_DEPLOY_HOOK_URL"
+            echo "Create it at: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+          curl --fail --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "Render deploy hook triggered."
+
+      # Basic post-deploy health check using the production backend URL
+      - name: Health check backend URL
+        env:
+          BACKEND_URL: https://seal-management-system.onrender.com/
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error "$BACKEND_URL" > /dev/null; then
+              echo "Backend is reachable: $BACKEND_URL"
+              exit 0
+            fi
+            echo "Waiting backend to be reachable... attempt $i/30"
+            sleep 10
+          done
+
+          echo "Backend health check failed after waiting 300s."
+          exit 1
