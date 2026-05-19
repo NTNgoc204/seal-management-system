@@ -3,14 +3,14 @@ name: Backend CI/CD
 on:
   # Run CI on PRs that change backend code or this workflow file
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev]
     paths:
       - "server/**"
       - ".github/workflows/backend.yml"
 
   # Run CI on pushes to main/develop when backend changed
   push:
-    branches: [main, develop]
+    branches: [main, dev]
     paths:
       - "server/**"
       - ".github/workflows/backend.yml"

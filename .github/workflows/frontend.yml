@@ -3,14 +3,14 @@ name: Frontend CI/CD
 on:
   # Run CI on PRs that touch frontend code or this workflow
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev]
     paths:
       - "client/**"
       - ".github/workflows/frontend.yml"
 
   # Run CI on pushes to main/develop when frontend changed
   push:
-    branches: [main, develop]
+    branches: [main, dev]
     paths:
       - "client/**"
       - ".github/workflows/frontend.yml"
