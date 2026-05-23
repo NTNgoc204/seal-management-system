@@ -1,0 +1,99 @@
+const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+const EventRole = mongoose.model('EventRole');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'seal_hackathon_secret_key_2026';
+
+/**
+ * Middleware to verify user JWT token.
+ */
+async function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Authentication token required.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'User account is deactivated.' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('JWT Verification Error:', error.message);
+    return res.status(403).json({ message: 'Invalid or expired authentication token.' });
+  }
+}
+
+/**
+ * Middleware to verify the user is a system admin.
+ */
+function requireSystemAdmin(req, res, next) {
+  if (!req.user || !req.user.isSystemAdmin) {
+    return res.status(403).json({ message: 'Access denied. System Administrator privileges required.' });
+  }
+  next();
+}
+
+/**
+ * Higher-order middleware to verify if user has a specific role in a specific event.
+ * Expects eventId in req.params.eventId, req.body.eventId, or req.query.eventId
+ * @param {Array<string>} allowedRoles - List of allowed roles (e.g. ['coordinator', 'judge'])
+ */
+function requireEventRole(allowedRoles) {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    // System Admins bypass event-specific checks
+    if (req.user.isSystemAdmin) {
+      return next();
+    }
+
+    const eventId = req.params.eventId || req.body.eventId || req.query.eventId;
+    if (!eventId) {
+      return res.status(400).json({ message: 'Event ID context is required to verify permissions.' });
+    }
+
+    try {
+      const eventRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId: eventId,
+        role: { $in: allowedRoles },
+        status: 'active'
+      });
+
+      if (!eventRole) {
+        return res.status(403).json({ 
+          message: `Access denied. You do not have the required role(s) [${allowedRoles.join(', ')}] in this event.` 
+        });
+      }
+
+      req.eventRole = eventRole.role;
+      req.eventTrackId = eventRole.trackId;
+      req.eventRoundId = eventRole.roundId;
+      next();
+    } catch (error) {
+      console.error('Error checking event role:', error.message);
+      return res.status(500).json({ message: 'Error checking user permissions.' });
+    }
+  };
+}
+
+module.exports = {
+  authenticateToken,
+  requireSystemAdmin,
+  requireEventRole
+};
