@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const User = mongoose.model('User');
 const EventRole = mongoose.model('EventRole');
@@ -192,6 +193,261 @@ router.post('/assign-role', authenticateToken, requireSystemAdmin, async (req, r
   } catch (error) {
     console.error('Assign Role Error:', error.message);
     res.status(500).json({ message: 'Server error assigning role.' });
+  }
+});
+
+/**
+ * @route   POST /api/auth/google
+ * @desc    Login or Register with Google Account
+ * @access  Public
+ */
+router.post('/google', async (req, res) => {
+  const { idToken, email, fullName, isMock } = req.body;
+
+  let userEmail = email;
+  let userName = fullName;
+  let userAvatar = '';
+
+  if (isMock || !idToken) {
+    // Mock simulation flow
+    if (!userEmail) {
+      return res.status(400).json({ message: 'Email is required for Google Sign-in.' });
+    }
+    userName = userName || userEmail.split('@')[0];
+  } else {
+    try {
+      // Real flow: verify token with Google API
+      const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      if (!googleRes.ok) {
+        return res.status(400).json({ message: 'Invalid Google token.' });
+      }
+      const payload = await googleRes.json();
+      userEmail = payload.email;
+      userName = payload.name || payload.email.split('@')[0];
+      userAvatar = payload.picture;
+    } catch (err) {
+      console.error('Google Auth Error:', err.message);
+      return res.status(500).json({ message: 'Error verifying Google account.' });
+    }
+  }
+
+  try {
+    let user = await User.findOne({ email: userEmail.toLowerCase() });
+    const isNewUser = !user;
+
+    if (!user) {
+      // Register new user via Google
+      const salt = await bcrypt.genSalt(10);
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, salt);
+      
+      const isFirstUser = (await User.countDocuments({})) === 0;
+
+      user = new User({
+        email: userEmail.toLowerCase(),
+        passwordHash,
+        fullName: userName,
+        avatarUrl: userAvatar,
+        isSystemAdmin: isFirstUser,
+        isApproved: true
+      });
+      await user.save();
+    } else if (userAvatar && !user.avatarUrl) {
+      user.avatarUrl = userAvatar;
+      await user.save();
+    }
+
+    const roles = await EventRole.find({ userId: user._id, status: 'active' }).populate('eventId', 'name semester year');
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '24h' });
+
+    res.json({
+      token,
+      isNewUser,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        isSystemAdmin: user.isSystemAdmin,
+        githubUsername: user.githubUsername,
+        avatarUrl: user.avatarUrl
+      },
+      roles: roles.map(r => ({
+        id: r._id,
+        eventId: r.eventId ? r.eventId._id : null,
+        eventName: r.eventId ? `${r.eventId.name} (${r.eventId.semester} ${r.eventId.year})` : 'System',
+        role: r.role,
+        trackId: r.trackId
+      }))
+    });
+
+  } catch (error) {
+    console.error('Google Login DB Error:', error.message);
+    res.status(500).json({ message: 'Server error processing Google account.' });
+  }
+});
+
+/**
+ * @route   POST /api/auth/github
+ * @desc    Login or Register with GitHub Account
+ * @access  Public
+ */
+router.post('/github', async (req, res) => {
+  const { accessToken, code, email, fullName, githubUsername, isMock } = req.body;
+
+  let userEmail = email;
+  let userName = fullName;
+  let userGithub = githubUsername;
+  let userAvatar = '';
+  let currentToken = accessToken;
+
+  if (!isMock && code) {
+    try {
+      const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liz8uHIFRtgdwDwE';
+      const clientSecret = process.env.GITHUB_CLIENT_SECRET || 'eb9a526811f9bc9b70b5ec1042974aa5e3c55df9';
+
+      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code
+        })
+      });
+
+      if (!tokenRes.ok) {
+        return res.status(400).json({ message: 'Failed to exchange GitHub authorization code.' });
+      }
+
+      const tokenData = await tokenRes.json();
+      if (tokenData.error) {
+        return res.status(400).json({ message: tokenData.error_description || 'GitHub OAuth authorization failed.' });
+      }
+
+      currentToken = tokenData.access_token;
+    } catch (err) {
+      console.error('GitHub Code Exchange Error:', err.message);
+      return res.status(500).json({ message: 'Server error during GitHub code exchange.' });
+    }
+  }
+
+  if (isMock || !currentToken) {
+    // Mock simulation flow
+    if (!userEmail) {
+      return res.status(400).json({ message: 'Email is required for GitHub Sign-in.' });
+    }
+    userName = userName || userEmail.split('@')[0];
+    userGithub = userGithub || userName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  } else {
+    try {
+      // Real flow: fetch user profile from GitHub API using currentToken
+      const userRes = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `token ${currentToken}`,
+          'Accept': 'application/json',
+          'User-Agent': 'SEAL-Hackathon'
+        }
+      });
+      if (!userRes.ok) {
+        return res.status(400).json({ message: 'Invalid GitHub access token.' });
+      }
+      const profile = await userRes.json();
+      
+      // Fetch primary email if public email is not set
+      let emailRes = await fetch('https://api.github.com/user/emails', {
+        headers: {
+          'Authorization': `token ${currentToken}`,
+          'Accept': 'application/json',
+          'User-Agent': 'SEAL-Hackathon'
+        }
+      });
+      let primaryEmail = profile.email;
+      if (emailRes.ok) {
+        const emails = await emailRes.json();
+        const primary = emails.find(e => e.primary);
+        if (primary) primaryEmail = primary.email;
+      }
+
+      userEmail = primaryEmail || profile.email;
+      if (!userEmail) {
+        return res.status(400).json({ message: 'Could not retrieve email from GitHub. Please set a public email on GitHub.' });
+      }
+
+      userName = profile.name || profile.login;
+      userGithub = profile.login;
+      userAvatar = profile.avatar_url;
+    } catch (err) {
+      console.error('GitHub Auth Error:', err.message);
+      return res.status(500).json({ message: 'Error verifying GitHub account.' });
+    }
+  }
+
+  try {
+    let user = await User.findOne({ email: userEmail.toLowerCase() });
+    const isNewUser = !user;
+
+    if (!user) {
+      // Register new user via GitHub
+      const salt = await bcrypt.genSalt(10);
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, salt);
+
+      const isFirstUser = (await User.countDocuments({})) === 0;
+
+      user = new User({
+        email: userEmail.toLowerCase(),
+        passwordHash,
+        fullName: userName,
+        githubUsername: userGithub,
+        avatarUrl: userAvatar,
+        isSystemAdmin: isFirstUser,
+        isApproved: true
+      });
+      await user.save();
+    } else {
+      let updated = false;
+      if (!user.githubUsername) {
+        user.githubUsername = userGithub;
+        updated = true;
+      }
+      if (userAvatar && !user.avatarUrl) {
+        user.avatarUrl = userAvatar;
+        updated = true;
+      }
+      if (updated) {
+        await user.save();
+      }
+    }
+
+    const roles = await EventRole.find({ userId: user._id, status: 'active' }).populate('eventId', 'name semester year');
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '24h' });
+
+    res.json({
+      token,
+      isNewUser,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        isSystemAdmin: user.isSystemAdmin,
+        githubUsername: user.githubUsername,
+        avatarUrl: user.avatarUrl
+      },
+      roles: roles.map(r => ({
+        id: r._id,
+        eventId: r.eventId ? r.eventId._id : null,
+        eventName: r.eventId ? `${r.eventId.name} (${r.eventId.semester} ${r.eventId.year})` : 'System',
+        role: r.role,
+        trackId: r.trackId
+      }))
+    });
+
+  } catch (error) {
+    console.error('GitHub Login DB Error:', error.message);
+    res.status(500).json({ message: 'Server error processing GitHub account.' });
   }
 });
 
