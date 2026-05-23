@@ -78,14 +78,14 @@ jobs:
             echo "No test script found in server/package.json -> skip."
           fi
 
-      # Smoke test: start server and verify "/" responds
+      # Smoke test: start server and verify "/api" responds on port 5000
       - name: Smoke test server startup
         run: |
-          npm start &
+          PORT=5000 npm start &
           APP_PID=$!
           trap "kill $APP_PID" EXIT
           sleep 5
-          curl --fail http://127.0.0.1:${PORT:-3000}/
+          curl --fail http://127.0.0.1:5000/api
 
   backend-cd:
     name: Backend CD (Render Deploy Hook)
