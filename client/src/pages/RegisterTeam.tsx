@@ -17,9 +17,14 @@ export default function RegisterTeam() {
   const [selectedTrackId, setSelectedTrackId] = useState('');
   
   const [teamName, setTeamName] = useState('');
-  const [members, setMembers] = useState<MemberInput[]>([
-    { email: '', fullName: '', githubUsername: '', studentId: '' }
-  ]);
+  
+  // Leader info states (to capture missing profile info from Google OAuth)
+  const [leaderFullName, setLeaderFullName] = useState('');
+  const [leaderStudentId, setLeaderStudentId] = useState('');
+  const [leaderGithubUsername, setLeaderGithubUsername] = useState('');
+  const [leaderUniversity, setLeaderUniversity] = useState('');
+
+  const [members, setMembers] = useState<MemberInput[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,6 +60,23 @@ export default function RegisterTeam() {
       })
       .catch(err => console.error('Error fetching tracks:', err));
   }, [selectedEventId]);
+
+  useEffect(() => {
+    if (!token) return;
+    axios.get('http://localhost:5000/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => {
+      const u = res.data.user;
+      if (u) {
+        setLeaderFullName(u.fullName || '');
+        setLeaderStudentId(u.studentId || '');
+        setLeaderGithubUsername(u.githubUsername || '');
+        setLeaderUniversity(u.university || '');
+      }
+    })
+    .catch(err => console.error('Error fetching user profile:', err));
+  }, [token]);
 
   const handleMemberChange = (index: number, field: keyof MemberInput, value: string) => {
     const updated = [...members];
@@ -97,7 +119,13 @@ export default function RegisterTeam() {
           eventId: selectedEventId,
           trackId: selectedTrackId,
           teamName: teamName.trim(),
-          membersList: members.filter(m => m.email.trim() !== '')
+          membersList: members.filter(m => m.email.trim() !== ''),
+          leaderInfo: {
+            fullName: leaderFullName.trim(),
+            studentId: leaderStudentId.trim(),
+            githubUsername: leaderGithubUsername.trim(),
+            university: leaderUniversity.trim()
+          }
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -107,7 +135,7 @@ export default function RegisterTeam() {
       setSuccess(response.data.message || 'Đăng ký thành công! Vui lòng chờ các thành viên xác nhận email.');
       // Reset form
       setTeamName('');
-      setMembers([{ email: '', fullName: '', githubUsername: '', studentId: '' }]);
+      setMembers([]);
       
       setTimeout(() => {
         navigate('/team-area');
@@ -215,6 +243,71 @@ export default function RegisterTeam() {
             </div>
           </div>
 
+          {/* Step 1.5: Leader Profile Capture */}
+          <div className="glass p-6 rounded-2xl space-y-6">
+            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-3">
+              <Users size={18} className="text-indigo-400" />
+              <span>1.5. Thông tin Trưởng nhóm (Bạn)</span>
+            </h2>
+            <p className="text-xs text-slate-400">
+              * Điền chính xác thông tin cá nhân của bạn. <strong>GitHub Username</strong> bắt buộc phải đúng để hệ thống tự động mời bạn tham gia Repository của nhóm.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Họ và Tên
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={leaderFullName}
+                  onChange={e => setLeaderFullName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  placeholder="Họ và Tên của bạn"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  MSSV (Mã số sinh viên)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={leaderStudentId}
+                  onChange={e => setLeaderStudentId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  placeholder="MSSV (e.g. SE180186)"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  GitHub Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={leaderGithubUsername}
+                  onChange={e => setLeaderGithubUsername(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  placeholder="github-username của bạn"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Trường Đại học
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={leaderUniversity}
+                  onChange={e => setLeaderUniversity(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  placeholder="Tên trường đại học của bạn"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Step 2: Member invites */}
           <div className="glass p-6 rounded-2xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -240,7 +333,7 @@ export default function RegisterTeam() {
               {members.map((member, index) => (
                 <div key={index} className="glass-light p-4 rounded-xl border border-slate-800/80 relative">
                   <div className="absolute right-4 top-4">
-                    {members.length > 1 && (
+                    {members.length > 0 && (
                       <button
                         type="button"
                         onClick={() => removeMemberRow(index)}

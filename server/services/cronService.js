@@ -66,13 +66,25 @@ async function syncRepo(repoId) {
     const sinceDate = repo.lastSyncedAt || null;
     
     // Fetch commits from github
-    const newCommits = await githubService.fetchCommits(repo.repoName, sinceDate);
+    const newCommits = await githubService.fetchCommits(repo.repoName, sinceDate, repo.orgName);
     console.log(`[SYNC] Found ${newCommits.length} new commits since last sync.`);
 
+    if (newCommits.length === 0) {
+      repo.syncStatus = 'success';
+      repo.lastSyncedAt = new Date();
+      await repo.save();
+      console.log(`[SYNC] No new commits for: ${repo.repoName}`);
+      return true;
+    }
+
+    // Sort new commits by date ascending so we process in order
+    newCommits.sort((a, b) => new Date(a.committedAt).getTime() - new Date(b.committedAt).getTime());
+
     let latestSha = repo.lastCommitSha;
+    const syncedCommits = [];
 
     for (const rawCommit of newCommits) {
-      // Check if commit already exists (prevent duplicate errors)
+      // Check if commit already exists
       let commitRecord = await Commit.findOne({ repositoryId: repo._id, commitSha: rawCommit.sha });
       
       if (!commitRecord) {
@@ -81,7 +93,7 @@ async function syncRepo(repoId) {
           repositoryId: repo._id,
           teamId: repo.teamId,
           commitSha: rawCommit.sha,
-          branch: repo.defaultBranch,
+          branch: repo.defaultBranch || 'main',
           authorGithubUsername: rawCommit.authorUsername,
           authorName: rawCommit.authorName,
           authorEmail: rawCommit.authorEmail,
@@ -97,10 +109,16 @@ async function syncRepo(repoId) {
         await commitRecord.save();
 
         // Fetch and create CommitFile records
-        const commitFiles = await githubService.fetchCommitFiles(repo.repoName, rawCommit.sha);
+        const commitFiles = await githubService.fetchCommitFiles(repo.repoName, rawCommit.sha, repo.orgName);
         const savedFiles = [];
 
         for (const file of commitFiles) {
+          // Truncate file patch at 3,000 characters
+          let patchContent = file.patch || '';
+          if (patchContent.length > 3000) {
+            patchContent = patchContent.substring(0, 3000) + '\n... [Truncated due to size limits] ...';
+          }
+
           const fileRecord = new CommitFile({
             commitId: commitRecord._id,
             repositoryId: repo._id,
@@ -109,7 +127,7 @@ async function syncRepo(repoId) {
             additions: file.additions,
             deletions: file.deletions,
             changes: file.changes,
-            patch: file.patch,
+            patch: patchContent,
             rawUrl: file.rawUrl || '',
             blobUrl: file.blobUrl || ''
           });
@@ -117,45 +135,145 @@ async function syncRepo(repoId) {
           savedFiles.push(fileRecord);
         }
 
-        // Call Gemini to analyze the commit
-        try {
-          const aiResult = await aiService.analyzeCommit(commitRecord, savedFiles);
-          
-          const aiAnalysis = new AiAnalysis({
-            repositoryId: repo._id,
-            teamId: repo.teamId,
-            commitId: commitRecord._id,
-            analysisType: 'commit_review',
-            provider: 'Google Gemini',
-            model: 'gemini-2.5-flash',
-            result: aiResult,
-            status: 'completed',
-            completedAt: new Date()
-          });
-          await aiAnalysis.save();
-
-          // Save a summary of the AI results back to the commit record
-          commitRecord.diffSummary = aiResult.summary;
-          await commitRecord.save();
-
-        } catch (aiErr) {
-          console.error(`[SYNC] Gemini AI review failed for commit ${rawCommit.sha}:`, aiErr.message);
-          
-          const aiAnalysisFailed = new AiAnalysis({
-            repositoryId: repo._id,
-            teamId: repo.teamId,
-            commitId: commitRecord._id,
-            analysisType: 'commit_review',
-            status: 'failed',
-            errorMessage: aiErr.message
-          });
-          await aiAnalysisFailed.save();
-        }
+        // Mock Firebase Realtime Database Sync
+        console.log(`[FIREBASE MOCK] Syncing raw commit thô to Firebase: /commit/${commitRecord.commitSha}.json`);
+        
+        syncedCommits.push({ commitRecord, savedFiles });
       }
 
       // Track the latest commit SHA
-      if (!latestSha || rawCommit.committedAt > (repo.lastSyncedAt || new Date(0))) {
+      if (!latestSha || new Date(rawCommit.committedAt) > (repo.lastSyncedAt || new Date(0))) {
         latestSha = rawCommit.sha;
+      }
+    }
+
+    // Now, run the per-push batch analysis for the synced commits in this run
+    if (syncedCommits.length > 0) {
+      console.log(`[SYNC] Running per-push review on ${syncedCommits.length} synced commit(s)...`);
+      const latestSyncItem = syncedCommits[syncedCommits.length - 1];
+      const latestCommit = latestSyncItem.commitRecord;
+
+      // Aggregate diff content for the batch, filtering out lockfiles and readmes
+      const skipFiles = ['.gitignore', 'package-lock.json', 'yarn.lock', '.env', 'README.md'];
+      let aggregatedDiff = '';
+      let additionsCount = 0;
+      let deletionsCount = 0;
+      let filesCount = 0;
+      const allFiles = [];
+
+      for (const item of syncedCommits) {
+        additionsCount += item.commitRecord.additions || 0;
+        deletionsCount += item.commitRecord.deletions || 0;
+        filesCount += item.commitRecord.changedFilesCount || 0;
+
+        for (const f of item.savedFiles) {
+          if (skipFiles.some(skip => f.filename.endsWith(skip))) continue;
+          allFiles.push(f);
+          if (aggregatedDiff.length < 50000) {
+            aggregatedDiff += `\n=== COMMIT-BOUNDARY: ${item.commitRecord.commitSha.substring(0, 7)} ===\n`;
+            aggregatedDiff += `File: ${f.filename}\nPatch:\n${f.patch}\n`;
+          }
+        }
+      }
+
+      // Cap aggregated diff at 50,000 characters
+      if (aggregatedDiff.length > 50000) {
+        aggregatedDiff = aggregatedDiff.substring(0, 50000) + '\n... [Total diff aggregated batch truncated at 50,000 characters] ...';
+      }
+
+      // Create a temporary commit object representing the sync batch review
+      const batchCommit = {
+        authorName: latestCommit.authorName,
+        authorGithubUsername: latestCommit.authorGithubUsername,
+        commitSha: latestCommit.commitSha,
+        message: `Batch Sync Review: ${syncedCommits.map(s => s.commitRecord.message).join('; ')}`,
+        additions: additionsCount,
+        deletions: deletionsCount,
+        changedFilesCount: filesCount
+      };
+
+      const batchFiles = [{
+        filename: 'Aggregated_Batch_Changes',
+        status: 'modified',
+        additions: additionsCount,
+        deletions: deletionsCount,
+        patch: aggregatedDiff
+      }];
+
+      // Call Gemini for Per-Push batch analysis
+      try {
+        const aiResult = await aiService.analyzeCommit(batchCommit, batchFiles);
+        
+        const aiAnalysis = new AiAnalysis({
+          repositoryId: repo._id,
+          teamId: repo.teamId,
+          commitId: latestCommit._id,
+          analysisType: 'commit_review',
+          provider: 'Google Gemini',
+          model: 'gemini-1.5-pro',
+          result: aiResult,
+          status: 'completed',
+          completedAt: new Date()
+        });
+        await aiAnalysis.save();
+
+        // Update latest commit with summary
+        latestCommit.diffSummary = aiResult.overall_picture?.push_summary || aiResult.summary || '';
+        await latestCommit.save();
+
+        console.log(`[SYNC] Completed per-push AI analysis successfully.`);
+
+      } catch (aiErr) {
+        console.error(`[SYNC] Gemini AI per-push review failed:`, aiErr.message);
+        const aiAnalysisFailed = new AiAnalysis({
+          repositoryId: repo._id,
+          teamId: repo.teamId,
+          commitId: latestCommit._id,
+          analysisType: 'commit_review',
+          status: 'failed',
+          errorMessage: aiErr.message
+        });
+        await aiAnalysisFailed.save();
+      }
+
+      // After per-push review, automatically trigger Team Aggregate review
+      try {
+        console.log(`[SYNC] Auto-triggering Team Aggregate Review for team: ${repo.teamId}...`);
+        
+        // Fetch up to 200 commits for the team
+        const allTeamCommits = await Commit.find({ teamId: repo.teamId }).sort({ committedAt: 1 }).limit(200);
+        // Fetch up to 40 prior reviews
+        const priorReviews = await AiAnalysis.find({
+          teamId: repo.teamId,
+          analysisType: 'commit_review',
+          status: 'completed'
+        }).sort({ createdAt: -1 }).limit(40);
+
+        const aggResult = await aiService.analyzeTeamAggregate(repo.teamId, allTeamCommits, priorReviews);
+
+        const aggAnalysis = new AiAnalysis({
+          repositoryId: repo._id,
+          teamId: repo.teamId,
+          analysisType: 'repository_review', // Maps to team_aggregate
+          provider: 'Google Gemini',
+          model: 'gemini-1.5-pro',
+          result: aggResult,
+          status: 'completed',
+          completedAt: new Date()
+        });
+        await aggAnalysis.save();
+        console.log(`[SYNC] Completed Team Aggregate AI review successfully.`);
+
+      } catch (aggErr) {
+        console.error(`[SYNC] Gemini AI team aggregate review failed:`, aggErr.message);
+        const aggAnalysisFailed = new AiAnalysis({
+          repositoryId: repo._id,
+          teamId: repo.teamId,
+          analysisType: 'repository_review',
+          status: 'failed',
+          errorMessage: aggErr.message
+        });
+        await aggAnalysisFailed.save();
       }
     }
 

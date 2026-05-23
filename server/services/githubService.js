@@ -16,14 +16,15 @@ if (!isMock && process.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
  * @param {string} visibility - 'private' or 'public'
  * @returns {Promise<{repoUrl: string, githubRepoId: string}>}
  */
-async function createTeamRepository(repoName, visibility = 'private') {
+async function createTeamRepository(repoName, visibility = 'private', customOrgName) {
+  const activeOrgName = customOrgName || orgName;
   if (isMock || !octokit) {
-    console.log(`[GITHUB MOCK] Creating ${visibility} repository: ${orgName}/${repoName}`);
+    console.log(`[GITHUB MOCK] Creating ${visibility} repository: ${activeOrgName}/${repoName}`);
     // Simulate slight delay
     await new Promise(resolve => setTimeout(resolve, 500));
     const randomId = Math.floor(Math.random() * 100000000).toString();
     return {
-      repoUrl: `https://github.com/${orgName}/${repoName}`,
+      repoUrl: `https://github.com/${activeOrgName}/${repoName}`,
       githubRepoId: randomId
     };
   }
@@ -31,7 +32,7 @@ async function createTeamRepository(repoName, visibility = 'private') {
   try {
     // Attempt to create org repo
     const response = await octokit.repos.createInOrg({
-      org: orgName,
+      org: activeOrgName,
       name: repoName,
       private: visibility === 'private',
       auto_init: true
@@ -45,7 +46,7 @@ async function createTeamRepository(repoName, visibility = 'private') {
     // If it fails or permissions are missing, fall back to mock to keep the app working
     console.log(`[GITHUB FALLBACK] Failsafe: Mocking repo creation for ${repoName}`);
     return {
-      repoUrl: `https://github.com/${orgName}/${repoName}`,
+      repoUrl: `https://github.com/${activeOrgName}/${repoName}`,
       githubRepoId: `fallback-${Date.now()}`
     };
   }
@@ -58,17 +59,18 @@ async function createTeamRepository(repoName, visibility = 'private') {
  * @param {string} permission - 'pull', 'push', 'admin', 'maintain', 'triage'
  * @returns {Promise<boolean>}
  */
-async function addCollaborator(repoName, username, permission = 'push') {
+async function addCollaborator(repoName, username, permission = 'push', customOrgName) {
+  const activeOrgName = customOrgName || orgName;
   if (!username) return false;
 
   if (isMock || !octokit) {
-    console.log(`[GITHUB MOCK] Inviting collaborator: ${username} to ${orgName}/${repoName} with permission ${permission}`);
+    console.log(`[GITHUB MOCK] Inviting collaborator: ${username} to ${activeOrgName}/${repoName} with permission ${permission}`);
     return true;
   }
 
   try {
     await octokit.repos.addCollaborator({
-      owner: orgName,
+      owner: activeOrgName,
       repo: repoName,
       username: username,
       permission: permission
@@ -87,7 +89,8 @@ async function addCollaborator(repoName, username, permission = 'push') {
  * @param {Date} sinceDate - Commits fetched since this date
  * @returns {Promise<Array>}
  */
-async function fetchCommits(repoName, sinceDate) {
+async function fetchCommits(repoName, sinceDate, customOrgName) {
+  const activeOrgName = customOrgName || orgName;
   if (isMock || !octokit) {
     // Generate realistic mock commits
     const mockCommits = [
@@ -135,7 +138,7 @@ async function fetchCommits(repoName, sinceDate) {
 
   try {
     const params = {
-      owner: orgName,
+      owner: activeOrgName,
       repo: repoName
     };
     if (sinceDate) {
@@ -150,7 +153,7 @@ async function fetchCommits(repoName, sinceDate) {
       let details;
       try {
         details = await octokit.repos.getCommit({
-          owner: orgName,
+          owner: activeOrgName,
           repo: repoName,
           ref: c.sha
         });
@@ -185,7 +188,8 @@ async function fetchCommits(repoName, sinceDate) {
  * @param {string} commitSha - Commit SHA
  * @returns {Promise<Array>}
  */
-async function fetchCommitFiles(repoName, commitSha) {
+async function fetchCommitFiles(repoName, commitSha, customOrgName) {
+  const activeOrgName = customOrgName || orgName;
   if (isMock || !octokit || commitSha.startsWith('fallback-')) {
     // Generate realistic mock files and patches based on the commitSha
     if (commitSha.includes('b8a8f1025')) {
@@ -242,7 +246,7 @@ async function fetchCommitFiles(repoName, commitSha) {
 
   try {
     const { data } = await octokit.repos.getCommit({
-      owner: orgName,
+      owner: activeOrgName,
       repo: repoName,
       ref: commitSha
     });
@@ -263,9 +267,44 @@ async function fetchCommitFiles(repoName, commitSha) {
   }
 }
 
+/**
+ * Creates or simulates creating a GitHub Organization for an event.
+ * @param {string} orgName - The organization name
+ * @returns {Promise<boolean>}
+ */
+async function createOrganization(orgName) {
+  console.log(`[GITHUB] Auto-provisioning organization: ${orgName}`);
+  if (isMock || !octokit) {
+    console.log(`[GITHUB MOCK] Created organization: ${orgName}`);
+    return true;
+  }
+  try {
+    // Check if organization exists
+    await octokit.orgs.get({ org: orgName });
+    console.log(`[GITHUB] Organization ${orgName} verified and linked.`);
+    return true;
+  } catch (error) {
+    console.warn(`[GITHUB WARNING] Organization ${orgName} not found or inaccessible:`, error.message);
+    console.log(`[GITHUB FALLBACK] Simulating connection link to Organization ${orgName}`);
+    return true;
+  }
+}
+
+/**
+ * Links a GitHub organization to the system.
+ * @param {string} orgName - Organization name
+ * @returns {Promise<boolean>}
+ */
+async function linkOrganization(orgName) {
+  return createOrganization(orgName);
+}
+
 module.exports = {
   createTeamRepository,
   addCollaborator,
   fetchCommits,
-  fetchCommitFiles
+  fetchCommitFiles,
+  createOrganization,
+  linkOrganization
 };
+

@@ -52,6 +52,33 @@ export default function AdminDashboard() {
   const [attachmentName, setAttachmentName] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
 
+  // GitHub integration states
+  const [githubOrgName, setGithubOrgName] = useState('seal-hackathon-2026');
+  const [repos, setRepos] = useState<any[]>([]);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [linkingTeamId, setLinkingTeamId] = useState('');
+  const [manualRepoName, setManualRepoName] = useState('');
+  const [manualRepoUrl, setManualRepoUrl] = useState('');
+  const [syncingRepoId, setSyncingRepoId] = useState('');
+
+  const Github = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+      <path d="M9 18c-4.51 2-5-2-7-2" />
+    </svg>
+  );
+
   const fetchEvents = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/events');
@@ -68,6 +95,28 @@ export default function AdminDashboard() {
     fetchEvents();
   }, []);
 
+  const fetchRepositories = async (eventId: string) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/github-repositories?eventId=${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRepos(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchAllTeams = async (eventId: string) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/teams/all/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAllTeams(res.data.filter((t: any) => t.status === 'confirmed'));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleSelectEvent = async (eventObj: any) => {
     setSelectedEvent(eventObj);
     setSelectedTrack(null);
@@ -80,6 +129,8 @@ export default function AdminDashboard() {
       if (res.data.tracks && res.data.tracks.length > 0) {
         setSelectedTrack(res.data.tracks[0]);
       }
+      fetchRepositories(eventObj._id);
+      fetchAllTeams(eventObj._id);
     } catch (err) {
       console.error(err);
     }
@@ -121,18 +172,106 @@ export default function AdminDashboard() {
           semester,
           year: parseInt(year),
           description: desc,
-          maxTeams: parseInt(maxTeams)
+          maxTeams: parseInt(maxTeams),
+          githubOrgName
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage({ type: 'success', text: 'Tạo cuộc thi thành công!' });
       setEventName('');
       setDesc('');
+      setGithubOrgName('seal-hackathon-2026');
       fetchEvents();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi tạo cuộc thi.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateEventStatus = async (newStatus: string) => {
+    if (!selectedEvent) return;
+    setMessage({ type: '', text: '' });
+    setLoading(true);
+
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/api/events/${selectedEvent._id}`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: 'Cập nhật trạng thái cuộc thi thành công!' });
+      // Update local state
+      setSelectedEvent(res.data.event);
+      // Fetch all events to update the list status
+      fetchEvents();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi cập nhật trạng thái cuộc thi.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateRepo = async (teamId: string) => {
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await axios.post(
+        'http://localhost:5000/api/github-repositories/create',
+        { teamId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: res.data.message });
+      if (selectedEvent) {
+        fetchRepositories(selectedEvent._id);
+        fetchAllTeams(selectedEvent._id);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi tạo repository.' });
+    }
+  };
+
+  const handleLinkRepo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkingTeamId || !manualRepoName || !manualRepoUrl) return;
+    setMessage({ type: '', text: '' });
+
+    try {
+      const res = await axios.post(
+        'http://localhost:5000/api/github-repositories/link',
+        { teamId: linkingTeamId, repoName: manualRepoName, repoUrl: manualRepoUrl },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: res.data.message });
+      setManualRepoName('');
+      setManualRepoUrl('');
+      setLinkingTeamId('');
+      if (selectedEvent) {
+        fetchRepositories(selectedEvent._id);
+        fetchAllTeams(selectedEvent._id);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi liên kết repository.' });
+    }
+  };
+
+  const handleSyncRepo = async (repoId: string) => {
+    setSyncingRepoId(repoId);
+    setMessage({ type: '', text: '' });
+    try {
+      setMessage({ type: 'success', text: 'Đang bắt đầu đồng bộ và chạy AI Review...' });
+      const res = await axios.post(
+        `http://localhost:5000/api/github-repositories/${repoId}/sync`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: res.data.message });
+      if (selectedEvent) {
+        fetchRepositories(selectedEvent._id);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi đồng bộ.' });
+    } finally {
+      setSyncingRepoId('');
     }
   };
 
@@ -312,6 +451,15 @@ export default function AdminDashboard() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">GitHub Organization</label>
+              <input 
+                type="text" placeholder="seal-hackathon-2026"
+                value={githubOrgName} onChange={e => setGithubOrgName(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl text-sm"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Học kỳ</label>
@@ -410,9 +558,25 @@ export default function AdminDashboard() {
           <div className="space-y-8">
             
             {/* Header Event title info */}
-            <div className="glass p-6 rounded-2xl bg-gradient-to-r from-indigo-950/40 to-slate-900/40">
-              <h1 className="text-2xl font-black text-white">{selectedEvent.name}</h1>
-              <p className="text-sm text-slate-400 mt-1">Trạng thái: <span className="text-indigo-400 font-bold">{selectedEvent.status.toUpperCase()}</span> | Đăng ký tối đa: {selectedEvent.maxTeams} đội</p>
+            <div className="glass p-6 rounded-2xl bg-gradient-to-r from-indigo-950/40 to-slate-900/40 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-white">{selectedEvent.name}</h1>
+                <p className="text-sm text-slate-400 mt-1">Trạng thái: <span className="text-indigo-400 font-bold">{selectedEvent.status.toUpperCase()}</span> | Đăng ký tối đa: {selectedEvent.maxTeams} đội</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-300">Trạng thái:</label>
+                <select
+                  value={selectedEvent.status}
+                  onChange={(e) => handleUpdateEventStatus(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-lg text-xs font-semibold px-3 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="draft">Bản nháp (Draft)</option>
+                  <option value="registration">Mở đăng ký (Registration)</option>
+                  <option value="ongoing">Đang diễn ra (Ongoing)</option>
+                  <option value="completed">Hoàn thành (Completed)</option>
+                  <option value="cancelled">Hủy (Cancelled)</option>
+                </select>
+              </div>
             </div>
 
             {/* Config: Tracks, Rounds & File upload */}
@@ -666,6 +830,122 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
+            </div>
+
+            {/* GitHub Repositories Management */}
+            <div className="glass p-6 rounded-2xl w-full mt-8 space-y-6">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Github size={18} className="text-indigo-400" />
+                <span>Quản lý GitHub Repositories của các Đội thi</span>
+              </h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Repos List */}
+                <div className="lg:col-span-2 space-y-4">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Danh sách Repositories ({repos.length})</h4>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {repos.map((r: any) => (
+                      <div key={r._id} className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-xs">
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-200">{r.teamId?.name || 'Đội thi'}</p>
+                          <a href={r.repoUrl} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline break-all block">{r.repoUrl || r.repoName}</a>
+                          <div className="flex gap-2 text-[10px] text-slate-400">
+                            <span>Mặc định: <span className="text-slate-300 font-semibold">{r.defaultBranch || 'main'}</span></span>
+                            <span>•</span>
+                            <span>Đồng bộ cuối: <span className="text-slate-300">{r.lastSyncedAt ? new Date(r.lastSyncedAt).toLocaleString() : 'Chưa đồng bộ'}</span></span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            r.syncStatus === 'success' ? 'bg-emerald-500/10 text-emerald-400' :
+                            r.syncStatus === 'syncing' ? 'bg-indigo-500/10 text-indigo-400 animate-pulse' :
+                            r.syncStatus === 'failed' ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {r.syncStatus.toUpperCase()}
+                          </span>
+                          <button
+                            onClick={() => handleSyncRepo(r._id)}
+                            disabled={syncingRepoId === r._id}
+                            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white px-3 py-1.5 rounded text-[10px] font-semibold transition-all"
+                          >
+                            {syncingRepoId === r._id ? 'Đang sync...' : 'Đồng bộ'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {repos.length === 0 && <p className="text-xs text-slate-500 italic">Chưa có repository nào được cấu hình cho cuộc thi này.</p>}
+                  </div>
+                </div>
+
+                {/* Provision or Link Repo */}
+                <div className="space-y-6">
+                  {/* Auto Provision list */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Cấp Repo tự động</h4>
+                    <p className="text-[10px] text-slate-500">Tạo repo riêng tư trong tổ chức GitHub và phân quyền cho các thành viên đã xác nhận.</p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).map((t: any) => (
+                        <div key={t._id} className="bg-slate-900/30 p-2.5 rounded border border-slate-800/80 flex justify-between items-center text-xs">
+                          <span className="font-semibold text-slate-300 truncate max-w-[120px]">{t.name}</span>
+                          <button
+                            onClick={() => handleCreateRepo(t._id)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-[9px] font-bold"
+                          >
+                            Tạo Repo
+                          </button>
+                        </div>
+                      ))}
+                      {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).length === 0 && (
+                        <p className="text-[10px] text-slate-500 italic">Tất cả đội confirmed đã được cấp repo.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <hr className="border-slate-800" />
+
+                  {/* Manual Link Form */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Liên kết repo thủ công</h4>
+                    <form onSubmit={handleLinkRepo} className="space-y-2">
+                      <select
+                        value={linkingTeamId}
+                        onChange={e => setLinkingTeamId(e.target.value)}
+                        required
+                        className="w-full px-3 py-1.5 rounded-lg text-xs"
+                      >
+                        <option value="">Chọn đội...</option>
+                        {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).map((t: any) => (
+                          <option key={t._id} value={t._id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Tên Repo (e.g. team-alpha-repo)"
+                        value={manualRepoName}
+                        onChange={e => setManualRepoName(e.target.value)}
+                        required
+                        className="w-full px-3 py-1.5 rounded-lg text-xs"
+                      />
+                      <input
+                        type="url"
+                        placeholder="Link Repo (https://github.com/...)"
+                        value={manualRepoUrl}
+                        onChange={e => setManualRepoUrl(e.target.value)}
+                        required
+                        className="w-full px-3 py-1.5 rounded-lg text-xs"
+                      />
+                      <button
+                        type="submit"
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-1.5 rounded-lg"
+                      >
+                        Liên kết Repo
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+              </div>
             </div>
 
           </div>
