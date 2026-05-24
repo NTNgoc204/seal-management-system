@@ -62,27 +62,29 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Routers
-const indexRouter = require("./routes/index");
-const authRouter = require("./routes/auth");
-const eventsRouter = require("./routes/events");
-const teamsRouter = require("./routes/teams");
-const rubricsRouter = require("./routes/rubrics");
-const criteriaRouter = require("./routes/criteria");
-const gradesRouter = require("./routes/grades");
-const analyticsRouter = require("./routes/analytics");
-const githubRepositoriesRouter = require("./routes/githubRepositories");
-const aiAnalysesRouter = require("./routes/aiAnalyses");
+const indexRouter = require('./routes/index');
+const authRouter = require('./routes/auth');
+const eventsRouter = require('./routes/events');
+const teamsRouter = require('./routes/teams');
+const rubricsRouter = require('./routes/rubrics');
+const criteriaRouter = require('./routes/criteria');
+const gradesRouter = require('./routes/grades');
+const analyticsRouter = require('./routes/analytics');
+const notificationsRouter = require('./routes/notifications');
+const githubRepositoriesRouter = require('./routes/githubRepositories');
+const aiAnalysesRouter = require('./routes/aiAnalyses');
 
-app.use("/api", indexRouter);
-app.use("/api/auth", authRouter);
-app.use("/api/events", eventsRouter);
-app.use("/api/teams", teamsRouter);
-app.use("/api/rubrics", rubricsRouter);
-app.use("/api/criteria", criteriaRouter);
-app.use("/api/grades", gradesRouter);
-app.use("/api/analytics", analyticsRouter);
-app.use("/api/github-repositories", githubRepositoriesRouter);
-app.use("/api/ai-analyses", aiAnalysesRouter);
+app.use('/api', indexRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/events', eventsRouter);
+app.use('/api/teams', teamsRouter);
+app.use('/api/rubrics', rubricsRouter);
+app.use('/api/criteria', criteriaRouter);
+app.use('/api/grades', gradesRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/github-repositories', githubRepositoriesRouter);
+app.use('/api/ai-analyses', aiAnalysesRouter);
 
 // Catch 404 and forward to error handler
 app.use(function (req, res, next) {
