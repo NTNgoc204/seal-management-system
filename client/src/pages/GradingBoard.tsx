@@ -20,6 +20,7 @@ export default function GradingBoard() {
   // Commits (to display in sidebar)
   const [commits, setCommits] = useState<any[]>([]);
   const [aiInsight, setAiInsight] = useState<any>(null);
+  const [aiQuestions, setAiQuestions] = useState<string[]>([]);
   const [sidebarTab, setSidebarTab] = useState<'commits' | 'ai'>('commits');
 
   // Grade state
@@ -31,23 +32,26 @@ export default function GradingBoard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  const currentRound = rounds.find((r: any) => r._id === selectedRoundId);
+  const isRoundLocked = currentRound?.status === 'completed';
+
   useEffect(() => {
     // Fetch events
     axios.get('http://localhost:5000/api/events')
-      .then(res => {
+      .then((res: any) => {
         setEvents(res.data);
         if (res.data.length > 0) {
           setSelectedEventId(res.data[0]._id);
         }
       })
-      .catch(err => console.error(err));
+      .catch((err: any) => console.error(err));
   }, []);
 
   useEffect(() => {
     if (!selectedEventId) return;
     // Fetch event details to get rounds and tracks
     axios.get(`http://localhost:5000/api/events/${selectedEventId}`)
-      .then(res => {
+      .then((res: any) => {
         setRounds(res.data.rounds || []);
         if (res.data.rounds && res.data.rounds.length > 0) {
           setSelectedRoundId(res.data.rounds[0]._id);
@@ -55,16 +59,23 @@ export default function GradingBoard() {
           setSelectedRoundId('');
         }
       })
-      .catch(err => console.error(err));
+      .catch((err: any) => console.error(err));
   }, [selectedEventId]);
 
   useEffect(() => {
     if (!selectedRoundId) return;
+
+    // Reset rubric & criteria immediately to avoid race conditions with old state
+    setRubric(null);
+    setCriteria([]);
+    setScores({});
+    setOverallComment('');
+
     // Fetch Rubric for round
     axios.get(`http://localhost:5000/api/rubrics/round/${selectedRoundId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(res => {
+      .then((res: any) => {
         setRubric(res.data.rubric);
         setCriteria(res.data.criteria || []);
         // Initialize scores state
@@ -74,7 +85,7 @@ export default function GradingBoard() {
         });
         setScores(initial);
       })
-      .catch(err => {
+      .catch((err: any) => {
         setRubric(null);
         setCriteria([]);
         console.error('Error fetching rubric:', err);
@@ -84,7 +95,7 @@ export default function GradingBoard() {
     axios.get(`http://localhost:5000/api/teams/all/${selectedEventId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(res => {
+      .then((res: any) => {
         const confirmed = res.data.filter((t: any) => t.status === 'confirmed');
         setTeams(confirmed);
         if (confirmed.length > 0) {
@@ -93,35 +104,90 @@ export default function GradingBoard() {
           setSelectedTeam(null);
         }
       })
-      .catch(err => console.error(err));
+      .catch((err: any) => console.error(err));
   }, [selectedRoundId]);
 
   useEffect(() => {
     if (!selectedTeam) {
       setCommits([]);
       setAiInsight(null);
+      setAiQuestions([]);
       return;
     }
     // Fetch commits for selected team
     axios.get(`http://localhost:5000/api/analytics/team/${selectedTeam._id}/commits`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(res => setCommits(res.data))
-      .catch(err => console.error(err));
+      .then((res: any) => setCommits(res.data))
+      .catch((err: any) => console.error(err));
 
     // Fetch AI analyses for selected team
     axios.get(`http://localhost:5000/api/ai-analyses/team/${selectedTeam._id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(res => {
+      .then((res: any) => {
         const agg = res.data.find((r: any) => r.analysisType === 'repository_review' && r.status === 'completed');
         setAiInsight(agg ? agg.result : null);
+
+        const commitReview = res.data.find((r: any) => r.analysisType === 'commit_review' && r.status === 'completed');
+        setAiQuestions(commitReview?.result?.suggested_questions_for_team || []);
       })
-      .catch(err => {
+      .catch((err: any) => {
         console.error(err);
         setAiInsight(null);
+        setAiQuestions([]);
       });
   }, [selectedTeam]);
+
+  // Load existing score when selectedTeam, selectedRoundId, or criteria list changes
+  useEffect(() => {
+    if (!selectedTeam || !selectedRoundId || criteria.length === 0) {
+      setOverallComment('');
+      return;
+    }
+
+    // Reset scores & comment to empty fields of current criteria immediately to avoid showing stale data from previous team
+    setOverallComment('');
+    const tempInitial: any = {};
+    criteria.forEach((c: any) => {
+      tempInitial[c._id] = { scoreValue: '', comment: '' };
+    });
+    setScores(tempInitial);
+
+    axios.get(`http://localhost:5000/api/grades/team/${selectedTeam._id}/round/${selectedRoundId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res: any) => {
+        if (res.data && res.data.score) {
+          setOverallComment(res.data.score.overallComment || '');
+          const populated: any = {};
+          // Initialize all criteria to empty first
+          criteria.forEach((c: any) => {
+            populated[c._id] = { scoreValue: '', comment: '' };
+          });
+          // Overlay actual saved scores
+          res.data.details.forEach((d: any) => {
+            if (populated[d.criterionId]) {
+              populated[d.criterionId] = {
+                scoreValue: String(d.scoreValue),
+                comment: d.comment || ''
+              };
+            }
+          });
+          setScores(populated);
+        } else {
+          setOverallComment('');
+          const initial: any = {};
+          criteria.forEach((c: any) => {
+            initial[c._id] = { scoreValue: '', comment: '' };
+          });
+          setScores(initial);
+        }
+      })
+      .catch((err: any) => {
+        console.error('Error fetching existing score:', err);
+      });
+  }, [selectedTeam, selectedRoundId, criteria, token]);
 
   const handleScoreChange = (critId: string, field: string, val: any) => {
     setScores((prev: any) => ({
@@ -219,6 +285,13 @@ export default function GradingBoard() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage({ type: 'success', text: 'Đã hoàn tất khoá điểm và công bố bảng xếp hạng!' });
+      
+      // Update local rounds state immediately to sync UI
+      setRounds((prevRounds: any[]) =>
+        prevRounds.map((r: any) =>
+          r._id === selectedRoundId ? { ...r, status: 'completed' } : r
+        )
+      );
     } catch (err: any) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khoá vòng đấu.' });
     }
@@ -259,12 +332,18 @@ export default function GradingBoard() {
         </div>
 
         {rubric && (
-          <button 
-            onClick={handleLockRound}
-            className="bg-indigo-600 hover:bg-indigo-500 text-xs font-bold px-4 py-2 rounded-xl text-white flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
-          >
-            <Lock size={14} /> Lock & Publish Round
-          </button>
+          isRoundLocked ? (
+            <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/5">
+              <Lock size={14} /> ROUND LOCKED & PUBLISHED
+            </span>
+          ) : (
+            <button 
+              onClick={handleLockRound}
+              className="bg-indigo-600 hover:bg-indigo-500 text-xs font-bold px-4 py-2 rounded-xl text-white flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+            >
+              <Lock size={14} /> Lock & Publish Round
+            </button>
+          )
         )}
       </div>
 
@@ -320,16 +399,25 @@ export default function GradingBoard() {
                     <p className="text-xs text-slate-400 mt-0.5">Lĩnh vực: <span className="text-slate-300 font-semibold">{selectedTeam.topicSubmission?.title || 'Chưa nộp'}</span></p>
                   </div>
                   
-                  <button
-                    type="button"
-                    onClick={handleGetAiSuggestion}
-                    disabled={aiLoading}
-                    className="flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                  >
-                    <Sparkles size={14} className={aiLoading ? 'animate-spin' : ''} />
-                    <span>{aiLoading ? 'AI đang chấm...' : 'Gợi ý từ Gemini AI'}</span>
-                  </button>
+                  {!isRoundLocked && (
+                    <button
+                      type="button"
+                      onClick={handleGetAiSuggestion}
+                      disabled={aiLoading}
+                      className="flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                    >
+                      <Sparkles size={14} className={aiLoading ? 'animate-spin' : ''} />
+                      <span>{aiLoading ? 'AI đang chấm...' : 'Gợi ý từ Gemini AI'}</span>
+                    </button>
+                  )}
                 </div>
+
+                {isRoundLocked && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl text-xs flex items-center gap-2">
+                    <Lock size={16} className="shrink-0" />
+                    <span>Vòng đấu này đã hoàn tất và kết quả điểm số đã được khoá chính thức. Bạn chỉ có thể xem điểm đã chấm.</span>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmitScores} className="space-y-6">
                   
@@ -353,19 +441,52 @@ export default function GradingBoard() {
                               placeholder={`0 - ${c.maxScore}`}
                               value={scores[c._id]?.scoreValue || ''}
                               onChange={e => handleScoreChange(c._id, 'scoreValue', e.target.value)}
-                              className="w-20 px-2 py-1 rounded text-center text-xs"
+                              disabled={isRoundLocked}
+                              className="w-20 px-2 py-1 rounded text-center text-xs disabled:opacity-50 disabled:bg-slate-950"
                             />
                             <span className="text-[10px] text-slate-400">/ {c.maxScore}</span>
                           </div>
                         </div>
 
+                        {/* Grading Levels Guides */}
+                        {c.gradingLevels && c.gradingLevels.length > 0 && (
+                          <div className="pt-2 border-t border-slate-800/40 space-y-1.5">
+                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Mức chấm gợi ý (Grading Levels):</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {c.gradingLevels.map((lvl: any, idx: number) => {
+                                const scoreVal = parseFloat(scores[c._id]?.scoreValue);
+                                const isMatched = !isNaN(scoreVal) && scoreVal >= lvl.minScore && scoreVal <= lvl.maxScore;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`p-2.5 rounded-lg border transition-all duration-300 ${
+                                      isMatched
+                                        ? 'bg-indigo-600/20 border-indigo-500 shadow-md shadow-indigo-600/10'
+                                        : 'bg-slate-950/40 border-slate-900/60 border-slate-800 hover:border-slate-700'
+                                    }`}
+                                  >
+                                    <div className="flex justify-between items-center text-[10px] font-bold">
+                                      <span className={isMatched ? 'text-indigo-400' : 'text-slate-300'}>{lvl.label}</span>
+                                      <span className="text-slate-400">{lvl.minScore} - {lvl.maxScore}đ</span>
+                                    </div>
+                                    {lvl.description && (
+                                      <p className="text-[9px] text-slate-400 mt-1 leading-relaxed">{lvl.description}</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
                           <input
                             type="text"
-                            placeholder="Nhận xét cụ thể về tiêu chí này..."
+                            placeholder={isRoundLocked ? "Không có nhận xét." : "Nhận xét cụ thể về tiêu chí này..."}
                             value={scores[c._id]?.comment || ''}
                             onChange={e => handleScoreChange(c._id, 'comment', e.target.value)}
-                            className="w-full px-3 py-2 rounded text-xs"
+                            disabled={isRoundLocked}
+                            className="w-full px-3 py-2 rounded text-xs disabled:opacity-50 disabled:bg-slate-950"
                           />
                         </div>
                       </div>
@@ -375,20 +496,23 @@ export default function GradingBoard() {
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1.5">Ý kiến nhận xét tổng quan (Overall comment)</label>
                     <textarea
-                      placeholder="Ý kiến đánh giá thế mạnh, điểm yếu và gợi ý phát triển cho nhóm..." rows={4}
+                      placeholder={isRoundLocked ? "Không có nhận xét tổng quan." : "Ý kiến đánh giá thế mạnh, điểm yếu và gợi ý phát triển cho nhóm..."} rows={4}
                       value={overallComment}
                       onChange={e => setOverallComment(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-xs"
+                      disabled={isRoundLocked}
+                      className="w-full px-3 py-2 rounded-lg text-xs disabled:opacity-50 disabled:bg-slate-950"
                     ></textarea>
                   </div>
 
-                  <button
-                    type="submit" disabled={saving}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/25"
-                  >
-                    <Save size={16} />
-                    <span>{saving ? 'Đang lưu điểm số...' : 'Xác nhận Nộp điểm'}</span>
-                  </button>
+                  {!isRoundLocked && (
+                    <button
+                      type="submit" disabled={saving}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/25"
+                    >
+                      <Save size={16} />
+                      <span>{saving ? 'Đang lưu điểm số...' : 'Xác nhận Nộp điểm'}</span>
+                    </button>
+                  )}
 
                 </form>
 
@@ -476,8 +600,12 @@ export default function GradingBoard() {
                     <div className="space-y-1 bg-slate-900/20 p-3 rounded-xl border border-slate-800 text-[10px]">
                       <span className="text-[10px] text-indigo-400 font-bold uppercase block">Gợi ý câu hỏi phản biện</span>
                       <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-400">
-                        <li>Làm sao giải quyết rủi ro sập API LLM?</li>
-                        <li>Đoạn mã nguồn nào quản lý retry & limit?</li>
+                        {aiQuestions.map((q: string, idx: number) => (
+                          <li key={idx}>{q}</li>
+                        ))}
+                        {aiQuestions.length === 0 && (
+                          <li className="list-none text-slate-500 italic">Không có câu hỏi gợi ý.</li>
+                        )}
                       </ul>
                     </div>
                   </>

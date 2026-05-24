@@ -43,7 +43,7 @@ router.get('/suggestion', authenticateToken, async (req, res) => {
     }
 
     const commits = await Commit.find({ teamId }).sort({ committedAt: -1 }).limit(10);
-    
+
     // 3. Find or create a snapshot representation
     let snapshot = await RepositorySnapshot.findOne({ teamId, roundId });
     if (!snapshot) {
@@ -60,7 +60,7 @@ router.get('/suggestion', authenticateToken, async (req, res) => {
 
     // 4. Generate suggestion
     const suggestions = await aiService.generateScoringSuggestion(snapshot, commits, criteria);
-    
+
     // Map code back to Criterion ID for UI ease
     const mappedSuggestions = suggestions.map(s => {
       const match = criteria.find(c => c.code === s.criterionCode);
@@ -75,6 +75,31 @@ router.get('/suggestion', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('AI Grading Suggestion Error:', error.message);
     res.status(500).json({ message: 'Server error generating suggestions.' });
+  }
+});
+
+/**
+ * @route   GET /api/grades/team/:teamId/round/:roundId
+ * @desc    Get existing score for a team in a round by the current judge
+ * @access  Private (Judges / Coords)
+ */
+router.get('/team/:teamId/round/:roundId', authenticateToken, async (req, res) => {
+  try {
+    const score = await Score.findOne({
+      teamId: req.params.teamId,
+      roundId: req.params.roundId,
+      judgeId: req.user._id
+    });
+
+    if (!score) {
+      return res.json({ score: null, details: [] });
+    }
+
+    const details = await ScoreDetail.find({ scoreId: score._id });
+    res.json({ score, details });
+  } catch (error) {
+    console.error('Fetch Score Error:', error.message);
+    res.status(500).json({ message: 'Server error retrieving scores.' });
   }
 });
 
@@ -98,6 +123,12 @@ router.post('/submit', authenticateToken, async (req, res) => {
     if (!rubric) return res.status(404).json({ message: 'Rubric not found.' });
     if (!rubric.isLocked) {
       return res.status(400).json({ message: 'Rubric must be locked by the coordinator before scores can be input.' });
+    }
+
+    const round = await Round.findById(roundId);
+    if (!round) return res.status(404).json({ message: 'Round not found.' });
+    if (round.status === 'completed') {
+      return res.status(400).json({ message: 'Vòng đấu này đã bị khoá. Điểm số đã được chốt và không thể sửa đổi.' });
     }
 
     // Verify user is a Judge or Coordinator in this event
@@ -125,20 +156,20 @@ router.post('/submit', authenticateToken, async (req, res) => {
     for (const d of details) {
       const { criterionId, scoreValue, comment } = d;
       const criterion = criteriaList.find(c => c._id.toString() === criterionId.toString());
-      
+
       if (!criterion) {
         return res.status(400).json({ message: `Criterion ID ${criterionId} not found in rubric.` });
       }
 
       if (scoreValue < 0 || scoreValue > criterion.maxScore) {
-        return res.status(400).json({ 
-          message: `Score value ${scoreValue} violates boundaries (0 to ${criterion.maxScore}) for ${criterion.name}.` 
+        return res.status(400).json({
+          message: `Score value ${scoreValue} violates boundaries (0 to ${criterion.maxScore}) for ${criterion.name}.`
         });
       }
 
       // Math weighted score: scoreValue * (weight / totalRubricWeight)
       const wScore = scoreValue * (criterion.weight / rubric.totalWeight);
-      
+
       totalRawScore += scoreValue;
       totalWeightedScore += wScore;
 
@@ -153,6 +184,9 @@ router.post('/submit', authenticateToken, async (req, res) => {
     // Create or update Score
     let score = await Score.findOne({ teamId, roundId, judgeId: req.user._id });
     if (score) {
+      if (score.status === 'locked') {
+        return res.status(400).json({ message: 'Điểm số của bạn cho đội thi này trong vòng đấu này đã bị khoá.' });
+      }
       score.totalRawScore = totalRawScore;
       score.totalWeightedScore = Math.round(totalWeightedScore * 100) / 100;
       score.overallComment = overallComment;
@@ -180,7 +214,7 @@ router.post('/submit', authenticateToken, async (req, res) => {
 
     // Save details (re-create for clarity)
     await ScoreDetail.deleteMany({ scoreId: score._id });
-    
+
     const preparedDetails = detailsToSave.map(d => ({
       scoreId: score._id,
       ...d
@@ -227,14 +261,14 @@ router.post('/lock-round', authenticateToken, async (req, res) => {
 
     // 2. Fetch all scores submitted for this round
     const scores = await Score.find({ roundId, status: 'submitted' });
-    
+
     // 3. For each team, calculate average weighted score
     const rankingsData = [];
-    
+
     for (const team of teams) {
       const teamScores = scores.filter(s => s.teamId.toString() === team._id.toString());
       const judgeCount = teamScores.length;
-      
+
       let averageScore = 0;
       if (judgeCount > 0) {
         const sum = teamScores.reduce((acc, s) => acc + s.totalWeightedScore, 0);
