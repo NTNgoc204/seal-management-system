@@ -60,6 +60,7 @@ const teamsRouter = require('./routes/teams');
 const rubricsRouter = require('./routes/rubrics');
 const gradesRouter = require('./routes/grades');
 const analyticsRouter = require('./routes/analytics');
+const notificationsRouter = require('./routes/notifications');
 
 app.use('/api', indexRouter);
 app.use('/api/auth', authRouter);
@@ -68,14 +69,15 @@ app.use('/api/teams', teamsRouter);
 app.use('/api/rubrics', rubricsRouter);
 app.use('/api/grades', gradesRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   next(createError(404));
 });
 
 // Error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
