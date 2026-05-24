@@ -123,6 +123,13 @@ export default function Navbar({ user, roles, onLogout }: NavbarProps) {
               </Link>
             )}
 
+            {(isCoordinator || isJudge) && (
+              <Link to="/hackathon-review" className={linkClass('/hackathon-review')}>
+                <GitBranch size={16} />
+                <span>Hackathon Review</span>
+              </Link>
+            )}
+
             {/* General Links */}
             <Link to="/leaderboard" className={linkClass('/leaderboard')}>
               <BarChart2 size={16} />

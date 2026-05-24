@@ -8,6 +8,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import TeamArea from './pages/TeamArea';
 import GradingBoard from './pages/GradingBoard';
 import Leaderboard from './pages/Leaderboard';
+import HackathonReview from './pages/HackathonReview';
 import { Trophy, GitBranch, Cpu, Calendar } from 'lucide-react';
 
 export default function App() {
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
             <Route path="/grading" element={user ? <GradingBoard /> : <Navigate to="/login" />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/hackathon-review" element={user ? <HackathonReview /> : <Navigate to="/login" />} />
           </Routes>
         </main>
 

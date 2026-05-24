@@ -61,6 +61,8 @@ const rubricsRouter = require('./routes/rubrics');
 const gradesRouter = require('./routes/grades');
 const analyticsRouter = require('./routes/analytics');
 const notificationsRouter = require('./routes/notifications');
+const githubRepositoriesRouter = require('./routes/githubRepositories');
+const aiAnalysesRouter = require('./routes/aiAnalyses');
 
 app.use('/api', indexRouter);
 app.use('/api/auth', authRouter);
@@ -70,6 +72,8 @@ app.use('/api/rubrics', rubricsRouter);
 app.use('/api/grades', gradesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/github-repositories', githubRepositoriesRouter);
+app.use('/api/ai-analyses', aiAnalysesRouter);
 
 // Catch 404 and forward to error handler
 app.use(function (req, res, next) {

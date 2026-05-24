@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Award, Sparkles, AlertCircle, Save, CheckCircle, GitCommit, Lock } from 'lucide-react';
+import { Award, Sparkles, AlertCircle, Save, CheckCircle, Lock } from 'lucide-react';
 
 export default function GradingBoard() {
   const token = localStorage.getItem('token');
@@ -19,6 +19,8 @@ export default function GradingBoard() {
 
   // Commits (to display in sidebar)
   const [commits, setCommits] = useState<any[]>([]);
+  const [aiInsight, setAiInsight] = useState<any>(null);
+  const [sidebarTab, setSidebarTab] = useState<'commits' | 'ai'>('commits');
 
   // Grade state
   const [scores, setScores] = useState<any>({}); // { criterionId: { scoreValue: 8.5, comment: '...' } }
@@ -97,6 +99,7 @@ export default function GradingBoard() {
   useEffect(() => {
     if (!selectedTeam) {
       setCommits([]);
+      setAiInsight(null);
       return;
     }
     // Fetch commits for selected team
@@ -105,6 +108,19 @@ export default function GradingBoard() {
     })
       .then(res => setCommits(res.data))
       .catch(err => console.error(err));
+
+    // Fetch AI analyses for selected team
+    axios.get(`http://localhost:5000/api/ai-analyses/team/${selectedTeam._id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => {
+        const agg = res.data.find((r: any) => r.analysisType === 'repository_review' && r.status === 'completed');
+        setAiInsight(agg ? agg.result : null);
+      })
+      .catch(err => {
+        console.error(err);
+        setAiInsight(null);
+      });
   }, [selectedTeam]);
 
   const handleScoreChange = (critId: string, field: string, val: any) => {
@@ -385,29 +401,91 @@ export default function GradingBoard() {
             )}
           </div>
 
-          {/* Commits Sidebar Column (1 Col) */}
-          <div className="lg:col-span-1 glass p-5 rounded-2xl space-y-4">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
-              <GitCommit size={16} className="text-indigo-400" />
-              <span>Tiến độ commits ({commits.length})</span>
-            </h3>
-            
-            <div className="space-y-3.5 max-h-[500px] overflow-y-auto pr-1">
-              {commits.map((c: any) => (
-                <div key={c._id} className="p-3 bg-slate-900/30 rounded-xl border border-slate-800 text-[10px] space-y-1">
-                  <p className="font-semibold text-slate-200 truncate">{c.message}</p>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>@{c.authorGithubUsername}</span>
-                    <span>{new Date(c.committedAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex gap-2 text-[9px] font-bold">
-                    <span className="text-emerald-400">+{c.additions}</span>
-                    <span className="text-rose-400">-{c.deletions}</span>
-                  </div>
-                </div>
-              ))}
-              {commits.length === 0 && <p className="text-[10px] text-slate-500 italic text-center py-6">Chưa có commit nào.</p>}
+          {/* Commits & AI Insights Sidebar (1 Col) */}
+          <div className="lg:col-span-1 glass p-5 rounded-2xl space-y-4 flex flex-col h-fit">
+            <div className="flex border-b border-slate-800 pb-2">
+              <button
+                type="button"
+                onClick={() => setSidebarTab('commits')}
+                className={`flex-1 text-center py-1.5 text-xs font-bold transition-colors ${
+                  sidebarTab === 'commits' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Commits ({commits.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSidebarTab('ai')}
+                className={`flex-1 text-center py-1.5 text-xs font-bold transition-colors ${
+                  sidebarTab === 'ai' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                AI Insights
+              </button>
             </div>
+            
+            {sidebarTab === 'commits' ? (
+              <div className="space-y-3.5 max-h-[500px] overflow-y-auto pr-1 flex-1">
+                {commits.map((c: any) => (
+                  <div key={c._id} className="p-3 bg-slate-900/30 rounded-xl border border-slate-800 text-[10px] space-y-1">
+                    <p className="font-semibold text-slate-200 truncate">{c.message}</p>
+                    <div className="flex justify-between items-center text-slate-400">
+                      <span>@{c.authorGithubUsername}</span>
+                      <span>{new Date(c.committedAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex gap-2 text-[9px] font-bold">
+                      <span className="text-emerald-400">+{c.additions}</span>
+                      <span className="text-rose-400">-{c.deletions}</span>
+                    </div>
+                  </div>
+                ))}
+                {commits.length === 0 && <p className="text-[10px] text-slate-500 italic text-center py-6">Chưa có commit nào.</p>}
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 flex-1 text-xs">
+                {aiInsight ? (
+                  <>
+                    <div className="bg-indigo-950/20 p-3 rounded-xl border border-indigo-900/30">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Phân cấp RAG</span>
+                      <p className="text-indigo-400 font-extrabold mt-1 text-sm">{aiInsight.smb_scale_advisory?.system_identity_recap?.includes('Agentic') ? 'Agentic RAG' : 'Advanced RAG'}</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Đánh giá chung</span>
+                      <p className="text-slate-300 leading-relaxed bg-slate-900/30 p-2.5 rounded border border-slate-800/80 text-[10px]">
+                        {aiInsight.overall_picture?.historical_synthesis}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Điểm định tính R1 & R2</span>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 text-[10px]">
+                        {Object.entries(aiInsight.criteria_comments || {}).map(([key, value]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center bg-slate-900/20 p-2 rounded border border-slate-900">
+                            <span className="font-bold text-slate-300">{key}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
+                              value.grade === 'Xuất sắc' ? 'bg-emerald-500/10 text-emerald-400' :
+                              value.grade === 'Tốt' ? 'bg-indigo-500/10 text-indigo-400' :
+                              value.grade === 'Khá' ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-800 text-slate-400'
+                            }`}>{value.grade}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 bg-slate-900/20 p-3 rounded-xl border border-slate-800 text-[10px]">
+                      <span className="text-[10px] text-indigo-400 font-bold uppercase block">Gợi ý câu hỏi phản biện</span>
+                      <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-400">
+                        <li>Làm sao giải quyết rủi ro sập API LLM?</li>
+                        <li>Đoạn mã nguồn nào quản lý retry & limit?</li>
+                      </ul>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[10px] text-slate-500 italic text-center py-6">Chưa có đánh giá tổng hợp AI cho đội thi này.</p>
+                )}
+              </div>
+            )}
           </div>
 
         </div>
