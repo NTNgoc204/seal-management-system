@@ -12,6 +12,7 @@ import GradingBoard from './pages/GradingBoard';
 import Leaderboard from './pages/Leaderboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import HackathonReview from './pages/HackathonReview';
+import GuestPortal from './pages/GuestPortal';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -77,6 +78,12 @@ export default function App() {
             <Route path="/register-team" element={
               <ProtectedRoute user={user} roles={roles} allowedRoles={['participant']}>
                 <RegisterTeam />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/guest-portal" element={
+              <ProtectedRoute user={user} roles={roles} allowedRoles={['participant']}>
+                <GuestPortal user={user} />
               </ProtectedRoute>
             } />
             
