@@ -637,8 +637,8 @@ router.get('/test-email', async (req, res) => {
 
   try {
     logs.push(`Initiating E2E email diagnostics through emailService...`);
-    let emailTo = 'sealhackathonfpt@gmail.com';
-    if (process.env.EMAIL_USER && process.env.EMAIL_USER.includes('@')) {
+    let emailTo = req.query.to || 'sealhackathonfpt@gmail.com';
+    if (!req.query.to && process.env.EMAIL_USER && process.env.EMAIL_USER.includes('@')) {
       emailTo = process.env.EMAIL_USER;
     }
     logs.push(`Target recipient: ${emailTo}`);
