@@ -637,7 +637,10 @@ router.get('/test-email', async (req, res) => {
 
   try {
     logs.push(`Initiating E2E email diagnostics through emailService...`);
-    const emailTo = process.env.EMAIL_FROM || 'sealhackathonfpt@gmail.com';
+    let emailTo = 'sealhackathonfpt@gmail.com';
+    if (process.env.EMAIL_USER && process.env.EMAIL_USER.includes('@')) {
+      emailTo = process.env.EMAIL_USER;
+    }
     logs.push(`Target recipient: ${emailTo}`);
     
     // Call emailService directly (this will route via Brevo HTTP API or standard SMTP depending on key prefix)
