@@ -336,14 +336,29 @@ router.get('/confirm-invite', async (req, res) => {
  */
 router.get('/my-team', authenticateToken, async (req, res) => {
   try {
-    const memberRecord = await TeamMember.findOne({ userId: req.user._id, confirmStatus: 'confirmed' });
-    if (!memberRecord) {
+    const memberRecords = await TeamMember.find({ userId: req.user._id, confirmStatus: 'confirmed' });
+    if (!memberRecords || memberRecords.length === 0) {
       return res.status(404).json({ message: 'You are not currently in any confirmed team.' });
     }
 
-    const team = await Team.findById(memberRecord.teamId)
-      .populate('eventId', 'name semester year status')
-      .populate('trackId', 'name description');
+    let team = null;
+    let activeMemberRecord = null;
+
+    // Find the first confirmed record pointing to an active team that actually exists
+    for (const record of memberRecords) {
+      const foundTeam = await Team.findById(record.teamId)
+        .populate('eventId', 'name semester year status')
+        .populate('trackId', 'name description');
+      if (foundTeam) {
+        team = foundTeam;
+        activeMemberRecord = record;
+        break;
+      }
+    }
+
+    if (!team) {
+      return res.status(404).json({ message: 'You are not currently in any active confirmed team.' });
+    }
 
     const members = await TeamMember.find({ teamId: team._id })
       .populate('userId', 'fullName email studentId githubUsername avatarUrl');
