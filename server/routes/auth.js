@@ -623,8 +623,6 @@ router.get('/verify-email', async (req, res) => {
  * @access  Public (For debugging)
  */
 router.get('/test-email', async (req, res) => {
-  const nodemailer = require('nodemailer');
-  
   const config = {
     host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
     port: parseInt(process.env.EMAIL_PORT || '587'),
@@ -632,41 +630,32 @@ router.get('/test-email', async (req, res) => {
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
-    },
-    debug: true,
-    logger: true
+    }
   };
 
   const logs = [];
-  const customLogger = {
-    debug: (entry, message) => logs.push(`[DEBUG] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`),
-    info: (entry, message) => logs.push(`[INFO] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`),
-    warn: (entry, message) => logs.push(`[WARN] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`),
-    error: (entry, message) => logs.push(`[ERROR] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`)
-  };
-
-  const transporter = nodemailer.createTransport({
-    ...config,
-    logger: customLogger
-  });
 
   try {
-    logs.push(`Attempting connection verification to ${config.host}:${config.port}...`);
-    await transporter.verify();
-    logs.push(`✅ SMTP connection verified successfully!`);
-
-    logs.push(`Sending diagnostic test email to ${config.auth.user}...`);
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"SEAL Hackathon Debug" <no-reply@domain.com>',
-      to: config.auth.user,
-      subject: `[SEAL Hackathon Debug] Real-time SMTP Diagnostics`,
-      text: `SMTP Diagnostics completed successfully at ${new Date().toISOString()}. Your credentials are valid!`
-    });
-    logs.push(`✅ Email sent successfully! MessageID: ${info.messageId}`);
+    logs.push(`Initiating E2E email diagnostics through emailService...`);
+    const emailTo = process.env.EMAIL_FROM || 'sealhackathonfpt@gmail.com';
+    logs.push(`Target recipient: ${emailTo}`);
+    
+    // Call emailService directly (this will route via Brevo HTTP API or standard SMTP depending on key prefix)
+    const success = await emailService.sendEmailVerification(
+      emailTo, 
+      'SEAL Debugger', 
+      'https://seal-management-system.onrender.com/api/auth/verify-email?token=test-diagnostics'
+    );
+    
+    if (!success) {
+      throw new Error('emailService returned false');
+    }
+    
+    logs.push(`✅ emailService reported success!`);
 
     res.json({
       status: 'success',
-      message: 'SMTP is fully functional on this server!',
+      message: 'SMTP/API mail delivery is fully functional!',
       configUsed: {
         host: config.host,
         port: config.port,
@@ -681,13 +670,9 @@ router.get('/test-email', async (req, res) => {
     logs.push(`❌ ERROR ENCOUNTERED: ${error.message}`);
     res.status(500).json({
       status: 'failed',
-      message: 'SMTP Diagnostics failed. See logs below.',
+      message: 'SMTP/API Diagnostics failed. See logs below.',
       errorDetails: {
         message: error.message,
-        code: error.code,
-        command: error.command,
-        response: error.response,
-        responseCode: error.responseCode,
         stack: error.stack
       },
       configUsed: {
