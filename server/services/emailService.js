@@ -22,6 +22,43 @@ if (!isMock) {
  */
 async function sendMailHelper(mailOptions) {
   const isBrevoApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('xsmtpsib-');
+  const isResendApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('re_');
+
+  if (isResendApi) {
+    console.log('[EMAIL] Detected Resend API key. Routing mail through secure Resend HTTP API (Port 443)...');
+    try {
+      let senderEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+      // Resend sandbox only allows sending from onboarding@resend.dev if domain is not verified
+      if (senderEmail.includes('gmail.com') || senderEmail.includes('fpt.edu.vn') || senderEmail.includes('domain.com')) {
+        senderEmail = 'onboarding@resend.dev';
+      }
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EMAIL_PASS}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: `SEAL Hackathon <${senderEmail}>`,
+          to: [mailOptions.to],
+          subject: mailOptions.subject,
+          html: mailOptions.html
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || `HTTP ${response.status}`);
+      }
+
+      const resData = await response.json();
+      console.log(`[EMAIL] Resend HTTP API Success! Message ID: ${resData.id}`);
+      return { messageId: resData.id };
+    } catch (apiErr) {
+      console.error(`[EMAIL] Resend HTTP API failed: ${apiErr.message}. Falling back to standard SMTP.`);
+    }
+  }
 
   if (isBrevoApi) {
     console.log('[EMAIL] Detected Brevo API key. Routing mail through secure HTTP API (Port 443)...');
