@@ -131,10 +131,11 @@ router.post('/register', authenticateToken, async (req, res) => {
       });
       await teamMember.save();
 
-      // Send email invitation
+      // Send email invitation (Asynchronous, non-blocking to prevent UI lag)
       // In production, point to real client domain.
       const inviteLink = `${req.protocol}://${req.get('host')}/api/teams/confirm-invite?token=${token}`;
-      await emailService.sendTeamInvitation(memberUser.email, teamName, inviteLink);
+      emailService.sendTeamInvitation(memberUser.email, teamName, inviteLink)
+        .catch(err => console.error(`Failed to send invitation email to ${memberUser.email}:`, err.message));
       
       // Send In-App Notification
       const Notification = mongoose.model('Notification');

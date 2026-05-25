@@ -58,10 +58,11 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     if (!isFirstUser) {
-      // Send verification email
+      // Send verification email (Asynchronous, non-blocking to prevent UI lag)
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
       const verifyLink = `${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}`;
-      await emailService.sendEmailVerification(user.email, user.fullName, verifyLink);
+      emailService.sendEmailVerification(user.email, user.fullName, verifyLink)
+        .catch(err => console.error(`Failed to send email verification to ${user.email}:`, err.message));
 
       return res.status(201).json({
         message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
