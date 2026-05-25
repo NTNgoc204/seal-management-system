@@ -11,6 +11,7 @@ import TeamArea from './pages/TeamArea';
 import GradingBoard from './pages/GradingBoard';
 import Leaderboard from './pages/Leaderboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import HackathonReview from './pages/HackathonReview';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -98,6 +99,7 @@ export default function App() {
             } />
             
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/hackathon-review" element={user ? <HackathonReview /> : <Navigate to="/login" />} />
           </Routes>
         </main>
 

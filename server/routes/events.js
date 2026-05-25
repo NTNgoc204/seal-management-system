@@ -14,6 +14,7 @@ const GithubRepository = mongoose.model('GithubRepository');
 const emailService = require('../services/emailService');
 const githubService = require('../services/githubService');
 const { authenticateToken, requireSystemAdmin, requireEventRole } = require('../middleware/authMiddleware');
+const githubService = require('../services/githubService');
 
 /**
  * @route   GET /api/events
@@ -70,6 +71,9 @@ router.post('/', authenticateToken, requireSystemAdmin, async (req, res) => {
       registrationOpen: new Date(),
       registrationClose: new Date(Date.now() + 3600000 * 24 * 14) // 2 weeks default
     });
+
+    // Auto-provision or link Github organization
+    await githubService.createOrganization(newEvent.githubOrgName);
 
     await newEvent.save();
 
@@ -450,6 +454,53 @@ router.post('/:eventId/distribute-teams', authenticateToken, async (req, res) =>
   } catch (error) {
     console.error('Distribute Teams Error:', error.message);
     res.status(500).json({ message: 'Server error during team distribution.' });
+  }
+});
+
+/**
+ * @route   PUT /api/events/:id
+ * @desc    Update event details/status (System Admin or Coordinator)
+ * @access  Private
+ */
+router.put('/:id', authenticateToken, async (req, res) => {
+  const { name, semester, year, description, bannerUrl, maxTeams, githubOrgName, status } = req.body;
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found.' });
+
+    // Auth check
+    if (!req.user.isSystemAdmin) {
+      const coordinatorRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId: event._id,
+        role: 'coordinator',
+        status: 'active'
+      });
+      if (!coordinatorRole) {
+        return res.status(403).json({ message: 'Only coordinators or system administrators can update events.' });
+      }
+    }
+
+    if (name) event.name = name;
+    if (semester) event.semester = semester;
+    if (year) event.year = parseInt(year);
+    if (description) event.description = description;
+    if (bannerUrl) event.bannerUrl = bannerUrl;
+    if (maxTeams) event.maxTeams = parseInt(maxTeams);
+    
+    if (githubOrgName && githubOrgName !== event.githubOrgName) {
+      event.githubOrgName = githubOrgName;
+      // Auto-provision or link new organization
+      await githubService.createOrganization(githubOrgName);
+    }
+    
+    if (status) event.status = status;
+
+    await event.save();
+    res.json({ message: 'Event updated successfully!', event });
+  } catch (error) {
+    console.error('Update Event Error:', error.message);
+    res.status(500).json({ message: 'Server error updating event.' });
   }
 });
 

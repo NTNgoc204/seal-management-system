@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Terminal, LogOut, Award, Users, ShieldAlert, GitBranch, BarChart2 } from 'lucide-react';
+import axios from 'axios';
+import { Terminal, LogOut, Award, Users, ShieldAlert, GitBranch, BarChart2, Bell } from 'lucide-react';
 
 interface NavbarProps {
   user: any;
@@ -9,6 +11,54 @@ interface NavbarProps {
 
 export default function Navbar({ user, roles, onLogout }: NavbarProps) {
   const location = useLocation();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const fetchNotifications = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get('http://localhost:5000/api/notifications', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setNotifications(res.data);
+        } catch (err) {
+          console.error('Failed to fetch notifications', err);
+        }
+      };
+      fetchNotifications();
+      // Optional: Polling every 30s
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const unreadCount = notifications.filter(n => n.status === 'pending').length;
+
+  const markAsRead = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:5000/api/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(notifications.map(n => n._id === id ? { ...n, status: 'sent' } : n));
+    } catch (err) {
+      console.error('Failed to mark notification as read', err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put('http://localhost:5000/api/notifications/read-all', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(notifications.map(n => ({ ...n, status: 'sent' })));
+    } catch (err) {
+      console.error('Failed to mark all as read', err);
+    }
+  };
 
   const isSystemAdmin = user?.isSystemAdmin;
   const isCoordinator = roles?.some(r => r.role === 'coordinator') || isSystemAdmin;
@@ -73,6 +123,13 @@ export default function Navbar({ user, roles, onLogout }: NavbarProps) {
               </Link>
             )}
 
+            {(isCoordinator || isJudge) && (
+              <Link to="/hackathon-review" className={linkClass('/hackathon-review')}>
+                <GitBranch size={16} />
+                <span>Hackathon Review</span>
+              </Link>
+            )}
+
             {/* General Links */}
             <Link to="/leaderboard" className={linkClass('/leaderboard')}>
               <BarChart2 size={16} />
@@ -85,6 +142,54 @@ export default function Navbar({ user, roles, onLogout }: NavbarProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-3">
+              
+              {/* Notification Bell */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 border border-transparent transition-all duration-200"
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border border-slate-900"></span>
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50">
+                    <div className="flex justify-between items-center p-3 border-b border-slate-800 sticky top-0 bg-slate-900/95 backdrop-blur z-10">
+                      <h4 className="text-sm font-semibold text-white">Thông báo</h4>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllAsRead} className="text-xs text-indigo-400 hover:text-indigo-300">
+                          Đánh dấu đã đọc
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-500">Chưa có thông báo nào.</div>
+                      ) : (
+                        notifications.map(notif => (
+                          <div 
+                            key={notif._id} 
+                            onClick={() => { if(notif.status === 'pending') markAsRead(notif._id); }}
+                            className={`p-3 border-b border-slate-800/50 cursor-pointer transition-colors ${notif.status === 'pending' ? 'bg-indigo-900/20 hover:bg-indigo-900/30' : 'hover:bg-slate-800/50'}`}
+                          >
+                            <p className={`text-xs font-semibold ${notif.status === 'pending' ? 'text-indigo-300' : 'text-slate-300'}`}>{notif.title}</p>
+                            <p className="text-xs text-slate-400 mt-1">{notif.body}</p>
+                            <p className="text-[10px] text-slate-500 mt-2">{new Date(notif.createdAt).toLocaleString()}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-semibold text-slate-200">{user.fullName}</p>
                 <p className="text-xs text-slate-400">

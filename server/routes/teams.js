@@ -21,13 +21,25 @@ const { authenticateToken } = require('../middleware/authMiddleware');
  * @access  Private (Participants)
  */
 router.post('/register', authenticateToken, async (req, res) => {
-  const { eventId, trackId, teamName, membersList } = req.body;
+  const { eventId, trackId, teamName, membersList, leaderInfo } = req.body;
 
   if (!eventId || !teamName || !membersList || !Array.isArray(membersList)) {
     return res.status(400).json({ message: 'Missing required registration parameters.' });
   }
 
   try {
+    // Update leader's profile if provided
+    if (leaderInfo) {
+      const User = mongoose.model('User');
+      const leader = await User.findById(req.user._id);
+      if (leader) {
+        if (leaderInfo.fullName) leader.fullName = leaderInfo.fullName;
+        if (leaderInfo.studentId) leader.studentId = leaderInfo.studentId;
+        if (leaderInfo.githubUsername) leader.githubUsername = leaderInfo.githubUsername;
+        if (leaderInfo.university) leader.university = leaderInfo.university;
+        await leader.save();
+      }
+    }
     // 1. Verify Event is active & open for registration
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found.' });
@@ -123,6 +135,62 @@ router.post('/register', authenticateToken, async (req, res) => {
       // In production, point to real client domain.
       const inviteLink = `${req.protocol}://${req.get('host')}/api/teams/confirm-invite?token=${token}`;
       await emailService.sendTeamInvitation(memberUser.email, teamName, inviteLink);
+      
+      // Send In-App Notification
+      const Notification = mongoose.model('Notification');
+      await new Notification({
+        userId: memberUser._id,
+        type: 'team_invite',
+        title: 'Lời mời vào đội',
+        body: `Bạn đã được mời vào đội "${teamName}". Hãy kiểm tra email để xác nhận!`,
+        channel: 'in_app'
+      }).save();
+    }
+
+    // Check if team has any pending members. If none (e.g. registered with no additional members),
+    // confirm the team immediately and auto-create repo!
+    const pendingMembers = await TeamMember.countDocuments({ teamId: team._id, confirmStatus: 'pending' });
+    if (pendingMembers === 0) {
+      team.status = 'confirmed';
+      await team.save();
+
+      console.log(`[TEAM] Team "${team.name}" is now FULLY CONFIRMED immediately upon registration! Creating repo...`);
+
+      // Automatically create Github Repository
+      const orgName = event ? event.githubOrgName : undefined;
+      const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      const gitResult = await githubService.createTeamRepository(slugRepoName, 'private', orgName);
+      
+      const newRepo = new GithubRepository({
+        eventId: team.eventId,
+        trackId: team.trackId,
+        teamId: team._id,
+        orgName: orgName,
+        repoName: slugRepoName,
+        repoUrl: gitResult.repoUrl,
+        githubRepoId: gitResult.githubRepoId,
+        syncStatus: 'not_synced'
+      });
+      await newRepo.save();
+
+      // Invite collaborators (the leader)
+      if (req.user.githubUsername) {
+        await githubService.addCollaborator(slugRepoName, req.user.githubUsername, 'push', orgName);
+      }
+
+      // Check capacity
+      const confirmedTeams = await Team.countDocuments({ eventId: team.eventId, status: 'confirmed' });
+      if (event.maxTeams && confirmedTeams >= event.maxTeams) {
+        event.status = 'ongoing';
+        await event.save();
+      }
+
+      return res.status(201).json({
+        message: 'Đăng ký nhóm thành công! Nhóm đã được xác nhận lập tức và khởi tạo kho lưu trữ GitHub.',
+        teamId: team._id,
+        status: 'confirmed',
+        repository: newRepo
+      });
     }
 
     res.status(201).json({
@@ -171,6 +239,19 @@ router.get('/confirm-invite', async (req, res) => {
     const totalMembers = await TeamMember.find({ teamId: team._id });
     const pendingCount = totalMembers.filter(m => m.confirmStatus !== 'confirmed').length;
 
+    // Notify Leader that a member confirmed
+    const Notification = mongoose.model('Notification');
+    const user = await User.findById(member.userId);
+    if (member.userId.toString() !== team.leaderId.toString()) {
+      await new Notification({
+        userId: team.leaderId,
+        type: 'member_confirm',
+        title: 'Thành viên đã xác nhận',
+        body: `Thành viên ${user ? user.fullName : 'mới'} đã xác nhận tham gia đội "${team.name}".`,
+        channel: 'in_app'
+      }).save();
+    }
+
     if (pendingCount === 0) {
       // All confirmed! Promote team status
       team.status = 'confirmed';
@@ -179,15 +260,20 @@ router.get('/confirm-invite', async (req, res) => {
       console.log(`[TEAM] Team "${team.name}" is now FULLY CONFIRMED! Creating repo...`);
 
       // 1. Automatically create Github Repository only if trackId is assigned
+      const event = await Event.findById(team.eventId);
+      const orgName = event ? event.githubOrgName : undefined;
+      const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
+
       if (team.trackId) {
         try {
-          const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-          const gitResult = await githubService.createTeamRepository(slugRepoName, 'private');
+          const gitResult = await githubService.createTeamRepository(slugRepoName, 'private', orgName);
           
           const newRepo = new GithubRepository({
             eventId: team.eventId,
             trackId: team.trackId,
             teamId: team._id,
+            orgName: orgName,
             repoName: slugRepoName,
             repoUrl: gitResult.repoUrl,
             githubRepoId: gitResult.githubRepoId,
@@ -196,10 +282,9 @@ router.get('/confirm-invite', async (req, res) => {
           await newRepo.save();
 
           // 2. Add collaborators
-          const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
           for (const tm of populatedMembers) {
             if (tm.userId && tm.userId.githubUsername) {
-              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername, 'push', orgName);
             }
           }
         } catch (gitErr) {
@@ -208,13 +293,23 @@ router.get('/confirm-invite', async (req, res) => {
       }
 
       // 3. Auto capacity checking and close form logic
-      const event = await Event.findById(team.eventId);
       const confirmedTeams = await Team.countDocuments({ eventId: team.eventId, status: 'confirmed' });
       
-      if (event.maxTeams && confirmedTeams >= event.maxTeams) {
+      if (event && event.maxTeams && confirmedTeams >= event.maxTeams) {
         event.status = 'ongoing'; // Auto-close registration, lock event
         await event.save();
         console.log(`[EVENT] Event "${event.name}" registration automatically CLOSED as it hit max team limit (${event.maxTeams}).`);
+      }
+
+      // Notify all team members that team is confirmed
+      for (const tm of populatedMembers) {
+        await new Notification({
+          userId: tm.userId._id || tm.userId,
+          type: 'team_ready',
+          title: 'Đội đã sẵn sàng thi đấu',
+          body: `Tuyệt vời! Tất cả thành viên đội "${team.name}" đã xác nhận. Repository GitHub của bạn là ${slugRepoName}.`,
+          channel: 'in_app'
+        }).save();
       }
     }
 

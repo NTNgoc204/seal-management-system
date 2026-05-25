@@ -13,6 +13,24 @@ import {
   ListOrdered,
 } from "lucide-react";
 
+const Github = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
 export default function AdminDashboard() {
   const token = localStorage.getItem("token");
   const [eventName, setEventName] = useState("");
@@ -66,6 +84,39 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
+  // Tab management state
+  const [activeTab, setActiveTab] = useState<'arena' | 'github'>('arena');
+
+  // Rubric Edit Form States
+  const [selectedRubricRoundId, setSelectedRubricRoundId] = useState('');
+  const [editingRubric, setEditingRubric] = useState(false);
+  const [editRubricName, setEditRubricName] = useState('');
+  const [editRubricDesc, setEditRubricDesc] = useState('');
+  const [editRubricTotalWeight, setEditRubricTotalWeight] = useState('100');
+  const [editRubricMaxScore, setEditRubricMaxScore] = useState('10');
+  const [editRubricIsActive, setEditRubricIsActive] = useState(true);
+
+  // Criterion States (Advanced)
+  const [critMaxScore, setCritMaxScore] = useState('10');
+  const [critOrder, setCritOrder] = useState('1');
+  const [critGradingLevels, setCritGradingLevels] = useState<any[]>([]);
+  const [editingCriterion, setEditingCriterion] = useState<any>(null);
+
+  // Grading Level Form States
+  const [levelLabel, setLevelLabel] = useState('');
+  const [levelMinScore, setLevelMinScore] = useState('');
+  const [levelMaxScore, setLevelMaxScore] = useState('');
+  const [levelDesc, setLevelDesc] = useState('');
+
+  // GitHub integration states
+  const [githubOrgName, setGithubOrgName] = useState('seal-hackathon-2026');
+  const [repos, setRepos] = useState<any[]>([]);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [linkingTeamId, setLinkingTeamId] = useState('');
+  const [manualRepoName, setManualRepoName] = useState('');
+  const [manualRepoUrl, setManualRepoUrl] = useState('');
+  const [syncingRepoId, setSyncingRepoId] = useState('');
+
   useEffect(() => {
     fetchEvents();
     fetchExistingRubrics();
@@ -97,6 +148,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchRepositories = async (eventId: string) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/github-repositories?eventId=${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRepos(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchAllTeams = async (eventId: string) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/teams/all/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAllTeams(res.data.filter((t: any) => t.status === 'confirmed'));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchEventDetails = async () => {
     if (!selectedEvent) return;
     try {
@@ -119,6 +192,8 @@ export default function AdminDashboard() {
 
       fetchEventRoles();
       fetchTeamsList();
+      fetchRepositories(selectedEvent._id);
+      fetchAllTeams(selectedEvent._id);
     } catch (err) {
       console.error("Lỗi fetch chi tiết sự kiện:", err);
     }
@@ -283,6 +358,7 @@ export default function AdminDashboard() {
           year: parseInt(year),
           description: desc,
           maxTeams: parseInt(maxTeams),
+          githubOrgName,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -296,6 +372,7 @@ export default function AdminDashboard() {
 
       setEventName("");
       setDesc("");
+      setGithubOrgName("seal-hackathon-2026");
       setMessage({
         type: "success",
         text: "Khởi tạo Cuộc thi thành công! Chi tiết cuộc thi hiển thị bên dưới.",
@@ -307,6 +384,27 @@ export default function AdminDashboard() {
         type: "error",
         text: err.response?.data?.message || "Lỗi khi tạo cuộc thi.",
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateEventStatus = async (newStatus: string) => {
+    if (!selectedEvent) return;
+    setMessage({ type: '', text: '' });
+    setLoading(true);
+
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/api/events/${selectedEvent._id}`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: 'Cập nhật trạng thái cuộc thi thành công!' });
+      setSelectedEvent(res.data.event);
+      fetchEvents();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi cập nhật trạng thái cuộc thi.' });
     } finally {
       setLoading(false);
     }
@@ -425,9 +523,9 @@ export default function AdminDashboard() {
       // Refresh event details
       await fetchEventDetails();
 
-      // Auto select the new round at Step 4 to view rubric
+      // Auto select the new round to view rubric
       setSelectedRoundForRubric(newRound);
-      fetchRubricForRound(newRound._id);
+      setSelectedRubricRoundId(newRound._id);
 
       // Re-fetch existing rubrics list
       fetchExistingRubrics();
@@ -441,89 +539,249 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchRubricForRound = async (roundId: string) => {
+  const fetchRoundsAndRubric = async () => {
+    if (!selectedRubricRoundId) {
+      setRubric(null);
+      setCriteria([]);
+      return;
+    }
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/rubrics/round/${roundId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await axios.get(`http://localhost:5000/api/rubrics/round/${selectedRubricRoundId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setRubric(res.data.rubric);
       setCriteria(res.data.criteria || []);
+      
+      // Populate edit fields if rubric exists
+      if (res.data.rubric) {
+        setEditRubricName(res.data.rubric.name);
+        setEditRubricDesc(res.data.rubric.description || '');
+        setEditRubricTotalWeight(String(res.data.rubric.totalWeight || 100));
+        setEditRubricMaxScore(String(res.data.rubric.maxCriterionScore || 10));
+        setEditRubricIsActive(res.data.rubric.isActive);
+      }
     } catch (err) {
       setRubric(null);
       setCriteria([]);
     }
   };
 
-  const handleCreateRubricInDetail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEvent || !selectedRoundForRubric) return;
-    setMessage({ type: "", text: "" });
-    setLoading(true);
+  useEffect(() => {
+    fetchRoundsAndRubric();
+  }, [selectedRubricRoundId]);
 
-    try {
-      const res = await axios.post(
-        "http://localhost:5000/api/rubrics",
-        {
-          eventId: selectedEvent._id,
-          trackId: selectedRoundForRubric.trackId,
-          roundId: selectedRoundForRubric._id,
-          name: rubricName || `Rubric ${selectedRoundForRubric.name}`,
-        },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setRubric(res.data);
+  useEffect(() => {
+    // When selected track or rounds change, auto-select a round for rubric selection
+    if (selectedTrack && rounds.length > 0) {
+      const trackRounds = rounds.filter((r: any) => r.trackId === selectedTrack._id);
+      if (trackRounds.length > 0) {
+        const roundOne = trackRounds.find((r: any) => r.order === 1) || trackRounds[0];
+        setSelectedRubricRoundId(roundOne._id);
+      } else {
+        setSelectedRubricRoundId('');
+        setRubric(null);
+        setCriteria([]);
+      }
+    } else {
+      setSelectedRubricRoundId('');
+      setRubric(null);
       setCriteria([]);
-      setRubricName("");
-      setMessage({ type: "success", text: "Khởi tạo Rubric thành công!" });
-      fetchExistingRubrics();
-    } catch (err: any) {
-      setMessage({
-        type: "error",
-        text: err.response?.data?.message || "Lỗi tạo Rubric.",
-      });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [selectedTrack, rounds]);
 
-  const handleAddCriterion = async (e: React.FormEvent) => {
+  const handleCreateRubric = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rubric) return;
-    setMessage({ type: "", text: "" });
-    setLoading(true);
+    if (!selectedEvent || !selectedTrack || !selectedRubricRoundId) return;
 
     try {
       await axios.post(
-        `http://localhost:5000/api/rubrics/${rubric._id}/criteria`,
+        'http://localhost:5000/api/rubrics',
         {
-          code: critCode,
-          name: critName,
-          weight: parseFloat(critWeight),
-          description: critDesc,
+          eventId: selectedEvent._id,
+          trackId: selectedTrack._id,
+          roundId: selectedRubricRoundId,
+          name: rubricName
         },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      setCritCode("");
-      setCritName("");
-      setCritDesc("");
-      setMessage({ type: "success", text: "Thêm tiêu chí thành công!" });
-
-      // Reload rubric details
-      if (selectedRoundForRubric) {
-        fetchRubricForRound(selectedRoundForRubric._id);
-      }
+      setRubricName('');
+      setMessage({ type: 'success', text: 'Khởi tạo Rubric thành công!' });
+      fetchRoundsAndRubric();
+      fetchExistingRubrics();
     } catch (err: any) {
-      setMessage({
-        type: "error",
-        text: err.response?.data?.message || "Lỗi thêm tiêu chí.",
-      });
-    } finally {
-      setLoading(false);
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi khởi tạo Rubric.' });
     }
+  };
+
+  const handleUpdateRubric = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rubric) return;
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/api/rubrics/${rubric._id}`,
+        {
+          name: editRubricName,
+          description: editRubricDesc,
+          totalWeight: parseFloat(editRubricTotalWeight),
+          maxCriterionScore: parseFloat(editRubricMaxScore),
+          isActive: editRubricIsActive
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRubric(res.data);
+      setEditingRubric(false);
+      setMessage({ type: 'success', text: 'Cập nhật Rubric thành công!' });
+      fetchRoundsAndRubric();
+      fetchExistingRubrics();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi cập nhật Rubric.' });
+    }
+  };
+
+  const handleDeleteRubric = async () => {
+    if (!rubric) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa/vô hiệu hóa Rubric này?')) return;
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/rubrics/${rubric._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRubric(null);
+      setCriteria([]);
+      setMessage({ type: 'success', text: 'Đã xóa Rubric thành công.' });
+      fetchRoundsAndRubric();
+      fetchExistingRubrics();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa Rubric.' });
+    }
+  };
+
+  const handleSaveCriterion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rubric) return;
+
+    const parsedWeight = parseFloat(critWeight);
+    const parsedMaxScore = parseFloat(critMaxScore);
+    const parsedOrder = parseInt(critOrder);
+
+    if (isNaN(parsedWeight) || isNaN(parsedMaxScore)) {
+      setMessage({ type: 'error', text: 'Trọng số và điểm tối đa phải là số.' });
+      return;
+    }
+
+    const payload = {
+      code: critCode.trim().toUpperCase(),
+      name: critName.trim(),
+      description: critDesc.trim(),
+      weight: parsedWeight,
+      maxScore: parsedMaxScore,
+      order: isNaN(parsedOrder) ? undefined : parsedOrder,
+      gradingLevels: critGradingLevels
+    };
+
+    try {
+      if (editingCriterion) {
+        await axios.put(
+          `http://localhost:5000/api/criteria/${editingCriterion._id}`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setMessage({ type: 'success', text: 'Cập nhật tiêu chí chấm điểm thành công!' });
+      } else {
+        await axios.post(
+          `http://localhost:5000/api/criteria/rubric/${rubric._id}`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setMessage({ type: 'success', text: 'Đã thêm tiêu chí chấm điểm mới!' });
+      }
+
+      setCritCode('');
+      setCritName('');
+      setCritDesc('');
+      setCritWeight('20');
+      setCritMaxScore('10');
+      setCritOrder('1');
+      setCritGradingLevels([]);
+      setEditingCriterion(null);
+      fetchRoundsAndRubric();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi lưu tiêu chí.' });
+    }
+  };
+
+  const handleDeleteCriterion = async (criterionId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa tiêu chí này?')) return;
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/criteria/${criterionId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: 'Đã xóa tiêu chí thành công.' });
+      fetchRoundsAndRubric();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa tiêu chí.' });
+    }
+  };
+
+  const handleStartEditCriterion = (c: any) => {
+    setEditingCriterion(c);
+    setCritCode(c.code);
+    setCritName(c.name);
+    setCritDesc(c.description || '');
+    setCritWeight(String(c.weight));
+    setCritMaxScore(String(c.maxScore || 10));
+    setCritOrder(String(c.order || 1));
+    setCritGradingLevels(c.gradingLevels || []);
+  };
+
+  const handleCancelEditCriterion = () => {
+    setEditingCriterion(null);
+    setCritCode('');
+    setCritName('');
+    setCritDesc('');
+    setCritWeight('20');
+    setCritMaxScore('10');
+    setCritOrder('1');
+    setCritGradingLevels([]);
+  };
+
+  const handleAddGradingLevel = () => {
+    if (!levelLabel.trim() || levelMinScore === '' || levelMaxScore === '') {
+      alert('Vui lòng điền nhãn, điểm tối thiểu và điểm tối đa.');
+      return;
+    }
+    const min = parseFloat(levelMinScore);
+    const max = parseFloat(levelMaxScore);
+    if (isNaN(min) || isNaN(max)) {
+      alert('Điểm số phải là số.');
+      return;
+    }
+    if (min > max) {
+      alert('Điểm tối thiểu không được lớn hơn điểm tối đa.');
+      return;
+    }
+
+    const newLvl = {
+      label: levelLabel.trim(),
+      minScore: min,
+      maxScore: max,
+      description: levelDesc.trim()
+    };
+
+    setCritGradingLevels(prev => {
+      const updated = [...prev, newLvl];
+      return updated.sort((a, b) => a.minScore - b.minScore);
+    });
+
+    setLevelLabel('');
+    setLevelMinScore('');
+    setLevelMaxScore('');
+    setLevelDesc('');
+  };
+
+  const handleRemoveGradingLevel = (index: number) => {
+    setCritGradingLevels(prev => prev.filter((_, idx) => idx !== index));
   };
 
   const handleLockRubric = async () => {
@@ -535,13 +793,14 @@ export default function AdminDashboard() {
       const res = await axios.post(
         `http://localhost:5000/api/rubrics/${rubric._id}/lock`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setRubric(res.data.rubric);
       setMessage({
         type: "success",
         text: "Đã khóa Rubric thành công! Bảng điểm đã sẵn sàng sử dụng.",
       });
+      fetchRoundsAndRubric();
     } catch (err: any) {
       setMessage({
         type: "error",
@@ -549,6 +808,69 @@ export default function AdminDashboard() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateRepo = async (teamId: string) => {
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await axios.post(
+        'http://localhost:5000/api/github-repositories/create',
+        { teamId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: res.data.message });
+      if (selectedEvent) {
+        fetchRepositories(selectedEvent._id);
+        fetchAllTeams(selectedEvent._id);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi tạo repository.' });
+    }
+  };
+
+  const handleLinkRepo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkingTeamId || !manualRepoName || !manualRepoUrl) return;
+    setMessage({ type: '', text: '' });
+
+    try {
+      const res = await axios.post(
+        'http://localhost:5000/api/github-repositories/link',
+        { teamId: linkingTeamId, repoName: manualRepoName, repoUrl: manualRepoUrl },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: res.data.message });
+      setManualRepoName('');
+      setManualRepoUrl('');
+      setLinkingTeamId('');
+      if (selectedEvent) {
+        fetchRepositories(selectedEvent._id);
+        fetchAllTeams(selectedEvent._id);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi liên kết repository.' });
+    }
+  };
+
+  const handleSyncRepo = async (repoId: string) => {
+    setSyncingRepoId(repoId);
+    setMessage({ type: '', text: '' });
+    try {
+      setMessage({ type: 'success', text: 'Đang bắt đầu đồng bộ và chạy AI Review...' });
+      const res = await axios.post(
+        `http://localhost:5000/api/github-repositories/${repoId}/sync`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: res.data.message });
+      if (selectedEvent) {
+        fetchRepositories(selectedEvent._id);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi đồng bộ.' });
+    } finally {
+      setSyncingRepoId('');
     }
   };
 
@@ -724,6 +1046,20 @@ export default function AdminDashboard() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
+                  GitHub Organization Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: seal-hackathon-2026"
+                  value={githubOrgName}
+                  onChange={(e) => setGithubOrgName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-mono"
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
@@ -840,44 +1176,88 @@ export default function AdminDashboard() {
 
       {/* DETAIL DASHBOARD & ROLE ASSIGNMENT */}
       {selectedEvent && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Event details, tracks and rounds */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Event Header Panel */}
-            <div className="glass p-6 rounded-2xl relative overflow-hidden bg-gradient-to-r from-indigo-950/20 to-slate-900/20">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl"></div>
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider">
-                    [DETAIL_BOARD]
+        <div className="space-y-6">
+          {/* Event Header Panel */}
+          <div className="glass p-6 rounded-2xl relative overflow-hidden bg-gradient-to-r from-indigo-950/20 to-slate-900/20">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl"></div>
+            <div className="flex justify-between items-start flex-col md:flex-row gap-4">
+              <div>
+                <span className="text-[10px] bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider">
+                  [DETAIL_BOARD]
+                </span>
+                <h1 className="text-2xl font-black text-white mt-2 font-mono uppercase tracking-tight">
+                  {selectedEvent.name}
+                </h1>
+                <p className="text-xs text-slate-400 mt-1">
+                  Học kỳ: {selectedEvent.semester} {selectedEvent.year} |
+                  Trạng thái:{" "}
+                  <span className="text-indigo-400 font-bold uppercase">
+                    {selectedEvent.status}
                   </span>
-                  <h1 className="text-2xl font-black text-white mt-2 font-mono uppercase tracking-tight">
-                    {selectedEvent.name}
-                  </h1>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Học kỳ: {selectedEvent.semester} {selectedEvent.year} |
-                    Trạng thái:{" "}
-                    <span className="text-indigo-400 font-bold uppercase">
-                      {selectedEvent.status}
-                    </span>
-                  </p>
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase font-mono">Trạng thái:</label>
+                  <select
+                    value={selectedEvent.status}
+                    onChange={(e) => handleUpdateEventStatus(e.target.value)}
+                    className="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer"
+                  >
+                    <option className="bg-slate-900" value="draft">Draft</option>
+                    <option className="bg-slate-900" value="registration">Registration</option>
+                    <option className="bg-slate-900" value="ongoing">Ongoing</option>
+                    <option className="bg-slate-900" value="completed">Completed</option>
+                    <option className="bg-slate-900" value="cancelled">Cancelled</option>
+                  </select>
                 </div>
                 <button
                   onClick={() => {
                     setSelectedEvent(null);
                   }}
-                  className="bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-mono flex items-center gap-1 cursor-pointer"
+                  className="bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono flex items-center gap-1 cursor-pointer"
                 >
                   <CalendarPlus size={14} />
                   Tạo cuộc thi mới
                 </button>
               </div>
-              {selectedEvent.description && (
-                <p className="text-xs text-slate-400 mt-4 leading-relaxed bg-slate-950/30 p-3 rounded-xl border border-slate-800/40">
-                  {selectedEvent.description}
-                </p>
-              )}
             </div>
+            {selectedEvent.description && (
+              <p className="text-xs text-slate-400 mt-4 leading-relaxed bg-slate-950/30 p-3 rounded-xl border border-slate-800/40">
+                {selectedEvent.description}
+              </p>
+            )}
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="flex gap-4 border-b border-slate-800/80 pb-3">
+            <button
+              onClick={() => setActiveTab("arena")}
+              className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
+                activeTab === "arena"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25"
+                  : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
+              }`}
+            >
+              Arena & Rubric Setup
+            </button>
+            <button
+              onClick={() => setActiveTab("github")}
+              className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "github"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25"
+                  : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
+              }`}
+            >
+              <Github size={14} />
+              GitHub & AI Review
+            </button>
+          </div>
+
+          {activeTab === "arena" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column: Event details, tracks and rounds */}
+              <div className="lg:col-span-2 space-y-6">
 
             {/* Config panel: Tracks and Rounds details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -899,10 +1279,9 @@ export default function AdminDashboard() {
                             (r) => r.trackId === t._id,
                           );
                           if (firstRound) {
-                            setSelectedRoundForRubric(firstRound);
-                            fetchRubricForRound(firstRound._id);
+                            setSelectedRubricRoundId(firstRound._id);
                           } else {
-                            setSelectedRoundForRubric(null);
+                            setSelectedRubricRoundId('');
                             setRubric(null);
                             setCriteria([]);
                           }
@@ -973,7 +1352,7 @@ export default function AdminDashboard() {
                           key={r._id}
                           onClick={() => {
                             setSelectedRoundForRubric(r);
-                            fetchRubricForRound(r._id);
+                            setSelectedRubricRoundId(r._id);
                           }}
                           className={`w-full text-left p-3 rounded-xl border text-xs flex justify-between items-center transition-all ${
                             selectedRoundForRubric?._id === r._id
@@ -1377,196 +1756,319 @@ export default function AdminDashboard() {
             </div>
 
             {/* Rubric and Criterion Configurations */}
-            {selectedRoundForRubric ? (
-              <div className="glass p-6 rounded-2xl">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-4 pb-3 border-b border-slate-800">
-                  <div>
-                    <h3 className="text-md font-bold text-white flex items-center gap-1.5 font-mono">
-                      <Award size={18} className="text-indigo-400" />
-                      <span>Rubric: {selectedRoundForRubric.name}</span>
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      Cấu hình bảng điểm phục vụ giám khảo chấm giải
-                    </p>
-                  </div>
+            <div className="glass p-6 rounded-2xl space-y-4">
+              <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
+                <Award size={18} className="text-indigo-400" />
+                <span>Cấu hình Rubric & Tiêu chí</span>
+              </h3>
 
-                  {rubric && (
-                    <div>
-                      {rubric.isLocked ? (
-                        <span className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded text-[10px] font-bold font-mono">
-                          <Lock size={12} /> ĐÃ KHÓA CHẤM ĐIỂM
-                        </span>
-                      ) : (
-                        <button
-                          onClick={handleLockRubric}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold px-3 py-1.5 rounded-lg text-white font-mono cursor-pointer shadow-lg shadow-indigo-600/25"
-                        >
-                          KHÓA & SỬ DỤNG
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {/* Round Selector */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">Chọn Vòng Đấu (Round)</label>
+                <select
+                  value={selectedRubricRoundId}
+                  onChange={e => setSelectedRubricRoundId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl text-xs bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                >
+                  <option value="">-- Chọn Vòng Đấu --</option>
+                  {rounds.filter((r: any) => r.trackId === selectedTrack?._id).map((r: any) => (
+                    <option key={r._id} value={r._id}>{r.name} (Vòng {r.order})</option>
+                  ))}
+                </select>
+              </div>
 
-                {rubric ? (
-                  <div className="space-y-4">
-                    <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-xs flex justify-between items-center font-mono">
+              {selectedRubricRoundId ? (
+                rubric ? (
+                  editingRubric ? (
+                    /* Edit Rubric Form */
+                    <form onSubmit={handleUpdateRubric} className="space-y-3.5 bg-slate-900/40 p-4 rounded-xl border border-slate-800/80 font-mono">
+                      <p className="text-xs font-bold text-slate-200 uppercase tracking-wider">Chỉnh sửa Rubric</p>
                       <div>
-                        <p className="font-bold text-indigo-400">
-                          {rubric.name}
-                        </p>
-                        <p className="text-slate-400 mt-1">
-                          Trọng số: {rubric.totalWeight}% | Điểm tối đa/tiêu
-                          chí: {rubric.maxCriterionScore}
-                        </p>
+                        <label className="block text-[10px] text-slate-400 mb-1">Tên Rubric</label>
+                        <input
+                          type="text" required
+                          value={editRubricName} onChange={e => setEditRubricName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-xs"
+                        />
                       </div>
-                    </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Mô tả</label>
+                        <textarea
+                          value={editRubricDesc} onChange={e => setEditRubricDesc(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-xs" rows={2}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Điểm tối đa / Tiêu chí</label>
+                        <input
+                          type="number" required
+                          value={editRubricMaxScore} onChange={e => setEditRubricMaxScore(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editRubricIsActive} onChange={e => setEditRubricIsActive(e.target.checked)}
+                          id="edit-rubric-active"
+                        />
+                        <label htmlFor="edit-rubric-active" className="text-xs text-slate-300">Hoạt động (Active)</label>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 rounded-lg text-xs cursor-pointer">Lưu</button>
+                        <button type="button" onClick={() => setEditingRubric(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 rounded-lg text-xs cursor-pointer">Hủy</button>
+                      </div>
+                    </form>
+                  ) : (
+                    /* Display Rubric Details & Criteria */
+                    <div className="space-y-4 font-mono">
+                      <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-indigo-400">{rubric.name}</p>
+                          {rubric.description && <p className="text-[10px] text-slate-400 mt-0.5">{rubric.description}</p>}
+                          <p className="text-[10px] text-slate-400 mt-1">Trọng số: {rubric.totalWeight}% | Max điểm: {rubric.maxCriterionScore}đ</p>
+                        </div>
+                        <div className="flex flex-col gap-2 items-end">
+                          {rubric.isLocked ? (
+                            <span className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded text-[10px] font-bold font-mono">
+                              <Lock size={10} /> ĐÃ KHÓA
+                            </span>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditRubricName(rubric.name);
+                                  setEditRubricDesc(rubric.description || '');
+                                  setEditRubricTotalWeight(String(rubric.totalWeight));
+                                  setEditRubricMaxScore(String(rubric.maxCriterionScore));
+                                  setEditRubricIsActive(rubric.isActive);
+                                  setEditingRubric(true);
+                                }}
+                                className="bg-slate-850 hover:bg-slate-800 border border-indigo-500/20 text-[9px] font-bold px-2 py-0.5 rounded text-indigo-450 cursor-pointer"
+                              >
+                                SỬA
+                              </button>
+                              <button type="button" onClick={handleDeleteRubric} className="bg-slate-850 hover:bg-slate-800 border border-rose-500/20 text-[9px] font-bold px-2 py-0.5 rounded text-rose-450 cursor-pointer">
+                                XÓA
+                              </button>
+                            </div>
+                          )}
+                          
+                          {!rubric.isLocked && (
+                            <button onClick={handleLockRubric} className="bg-indigo-600 hover:bg-indigo-500 text-[9px] font-bold px-2.5 py-1 rounded text-white cursor-pointer">
+                              KHÓA RUBRIC
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
-                    {/* Criteria List */}
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-slate-300 font-mono">
-                        Các tiêu chí chi tiết:
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {criteria.map((c: any) => (
-                          <div
-                            key={c._id}
-                            className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/80 text-[11px] flex justify-between items-center"
-                          >
-                            <div>
-                              <span className="font-bold text-slate-200 font-mono">
-                                [{c.code}]
+                      {/* Weight progress bar */}
+                      {(() => {
+                        const currentWeightSum = criteria.reduce((sum, c) => sum + (c.weight || 0), 0);
+                        const isFullyWeighted = Math.abs(currentWeightSum - rubric.totalWeight) < 0.01;
+                        return (
+                          <div className="bg-slate-900/30 p-3.5 rounded-xl border border-slate-800 text-[10px] space-y-1.5">
+                            <div className="flex justify-between items-center font-semibold font-mono">
+                              <span className="text-slate-400">Trọng số tiêu chí đã phân bổ:</span>
+                              <span className={isFullyWeighted ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                                {currentWeightSum} / {rubric.totalWeight}%
                               </span>
-                              <span className="text-slate-300 ml-1.5">
-                                {c.name}
-                              </span>
-                              {c.description && (
-                                <p className="text-[10px] text-slate-500 mt-0.5">
-                                  {c.description}
-                                </p>
+                            </div>
+                            <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-900">
+                              <div
+                                  className={`h-full transition-all duration-300 ${isFullyWeighted ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                  style={{ width: `${Math.min(100, (currentWeightSum / rubric.totalWeight) * 100)}%` }}
+                              ></div>
+                            </div>
+                            {!isFullyWeighted && !rubric.isLocked && (
+                              <p className="text-[9px] text-amber-500/80 italic font-mono">
+                                * Tổng trọng số tiêu chí phải bằng {rubric.totalWeight}% mới có thể khoá Rubric.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Criteria list */}
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-slate-300">Tiêu chí chi tiết:</p>
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                          {criteria.map((c: any) => (
+                            <div key={c._id} className="bg-slate-900/30 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="font-bold text-slate-200">[{c.code}] {c.name}</span>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">{c.description || 'Không mô tả.'}</p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-indigo-400 font-bold">{c.weight}%</span>
+                                  <p className="text-[9px] text-slate-500 mt-0.5">Max: {c.maxScore}đ | Hạng: {c.order || 0}</p>
+                                </div>
+                              </div>
+
+                              {c.gradingLevels && c.gradingLevels.length > 0 && (
+                                <div className="pt-1.5 border-t border-slate-850">
+                                  <div className="flex flex-wrap gap-1">
+                                    {c.gradingLevels.map((lvl: any, idx: number) => (
+                                      <span key={idx} className="bg-slate-950 px-2 py-0.5 rounded text-[8px] border border-slate-850 text-slate-400" title={lvl.description}>
+                                        <strong className="text-indigo-300">{lvl.label}</strong> ({lvl.minScore}-{lvl.maxScore}đ)
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {!rubric.isLocked && (
+                                <div className="flex gap-2 justify-end pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditCriterion(c)}
+                                    className="text-[9px] text-indigo-400 hover:underline font-semibold cursor-pointer"
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteCriterion(c._id)}
+                                    className="text-[9px] text-rose-400 hover:underline font-semibold cursor-pointer"
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
                               )}
                             </div>
-                            <span className="text-indigo-400 font-black text-xs font-mono">
-                              {c.weight}%
-                            </span>
-                          </div>
-                        ))}
+                          ))}
+                          {criteria.length === 0 && <p className="text-xs text-slate-500 italic">Chưa có tiêu chí nào.</p>}
+                        </div>
                       </div>
-                      {criteria.length === 0 && (
-                        <p className="text-xs text-slate-500 italic py-2">
-                          Chưa thiết lập tiêu chí. Vui lòng thêm tiêu chí bên
-                          dưới.
-                        </p>
+
+                      {/* Add/Edit Criterion Form */}
+                      {!rubric.isLocked && (
+                        <form onSubmit={handleSaveCriterion} className="space-y-3 pt-3 border-t border-slate-800">
+                          <p className="text-xs font-bold text-slate-350">{editingCriterion ? `Sửa tiêu chí [${editingCriterion.code}]` : 'Thêm tiêu chí mới'}</p>
+                          
+                          <div className="grid grid-cols-3 gap-2">
+                            <input 
+                              type="text" required placeholder="MÃ (e.g. CODE)"
+                              value={critCode} onChange={e => setCritCode(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                            />
+                            <input 
+                              type="text" required placeholder="Tên tiêu chí (e.g. Clean Code)"
+                              value={critName} onChange={e => setCritName(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded text-xs col-span-2 bg-slate-900 border border-slate-800 text-slate-200"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-2">
+                            <input 
+                              type="number" required placeholder="Trọng số %"
+                              value={critWeight} onChange={e => setCritWeight(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                            />
+                            <input 
+                              type="number" required placeholder="Max Điểm"
+                              value={critMaxScore} onChange={e => setCritMaxScore(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                            />
+                            <input 
+                              type="number" placeholder="Thứ tự"
+                              value={critOrder} onChange={e => setCritOrder(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                            />
+                          </div>
+
+                          <input 
+                            type="text" placeholder="Mô tả tiêu chí"
+                            value={critDesc} onChange={e => setCritDesc(e.target.value)}
+                            className="w-full px-3 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                          />
+
+                          {/* Grading Levels Management in Form */}
+                          <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-900 space-y-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Định nghĩa mức chấm (Grading Levels)</p>
+                            
+                            {/* Display currently added levels in form */}
+                            {critGradingLevels.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {critGradingLevels.map((lvl, idx) => (
+                                  <div key={idx} className="bg-slate-900 border border-slate-800 text-[9px] px-2 py-0.5 rounded-md flex items-center gap-1.5">
+                                    <span className="text-slate-300">
+                                      <strong className="text-indigo-400">{lvl.label}</strong> ({lvl.minScore}-{lvl.maxScore}đ)
+                                    </span>
+                                    <button type="button" onClick={() => handleRemoveGradingLevel(idx)} className="text-rose-400 font-bold hover:text-rose-350">×</button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Form inputs for new level */}
+                            <div className="grid grid-cols-3 gap-2">
+                              <input
+                                type="text" placeholder="Nhãn (Tốt)"
+                                value={levelLabel} onChange={e => setLevelLabel(e.target.value)}
+                                className="w-full px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
+                              />
+                              <input
+                                type="number" step="0.1" placeholder="Điểm min (7.0)"
+                                value={levelMinScore} onChange={e => setLevelMinScore(e.target.value)}
+                                className="w-full px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
+                              />
+                              <input
+                                type="number" step="0.1" placeholder="Điểm max (8.5)"
+                                value={levelMaxScore} onChange={e => setLevelMaxScore(e.target.value)}
+                                className="w-full px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text" placeholder="Mô tả chi tiết mức chấm này..."
+                                value={levelDesc} onChange={e => setLevelDesc(e.target.value)}
+                                className="flex-1 px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddGradingLevel}
+                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded text-[10px] font-bold cursor-pointer"
+                              >
+                                + Thêm
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg cursor-pointer">
+                              {editingCriterion ? 'Lưu cập nhật' : 'Lưu tiêu chí'}
+                            </button>
+                            {editingCriterion && (
+                              <button type="button" onClick={handleCancelEditCriterion} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-4 rounded-lg cursor-pointer">
+                                Hủy sửa
+                              </button>
+                            )}
+                          </div>
+                        </form>
                       )}
                     </div>
-
-                    {/* Add Criterion form */}
-                    {!rubric.isLocked && (
-                      <form
-                        onSubmit={handleAddCriterion}
-                        className="space-y-3 pt-4 border-t border-slate-800/80"
-                      >
-                        <p className="text-xs font-bold text-slate-300 font-mono">
-                          Thêm tiêu chí chấm điểm mới:
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-semibold text-slate-500 mb-1 font-mono">
-                              Mã tiêu chí
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="E.g. TECH, IDEA"
-                              value={critCode}
-                              onChange={(e) => setCritCode(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-semibold text-slate-500 mb-1 font-mono">
-                              Tên tiêu chí
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="E.g. Chất lượng mã nguồn"
-                              value={critName}
-                              onChange={(e) => setCritName(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-semibold text-slate-500 mb-1 font-mono">
-                              Trọng số (%)
-                            </label>
-                            <input
-                              type="number"
-                              required
-                              placeholder="30"
-                              value={critWeight}
-                              onChange={(e) => setCritWeight(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[10px] font-semibold text-slate-500 mb-1 font-mono">
-                              Mô tả chi tiết
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Độ tối ưu codebase, tính clean code..."
-                              value={critDesc}
-                              onChange={(e) => setCritDesc(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="submit"
-                          className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 px-4 rounded-lg cursor-pointer font-mono"
-                        >
-                          + Thêm tiêu chí
-                        </button>
-                      </form>
-                    )}
-                  </div>
+                  )
                 ) : (
-                  <form
-                    onSubmit={handleCreateRubricInDetail}
-                    className="space-y-3"
-                  >
-                    <p className="text-xs text-slate-400 italic">
-                      Vòng thi này chưa có bảng Rubric tiêu chí. Hãy khởi tạo
-                      một bảng Rubric trống bên dưới.
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Tên Rubric (e.g. Rubric Đánh giá Vòng 1)"
-                        value={rubricName}
-                        onChange={(e) => setRubricName(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                      />
-                      <button
-                        type="submit"
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer whitespace-nowrap font-mono"
-                      >
-                        Khởi tạo Rubric
-                      </button>
-                    </div>
+                  /* Initial Rubric creation form if no rubric exists */
+                  <form onSubmit={handleCreateRubric} className="space-y-3 font-mono">
+                    <p className="text-xs text-slate-400">Chưa khởi tạo Rubric cho Vòng Đấu này.</p>
+                    <input 
+                      type="text" required placeholder="Tên Rubric (e.g. Rubric Đánh giá Vòng 1)"
+                      value={rubricName} onChange={e => setRubricName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                    />
+                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 rounded-lg cursor-pointer">
+                      Khởi tạo Rubric
+                    </button>
                   </form>
-                )}
-              </div>
-            ) : (
-              <div className="glass p-6 text-center text-slate-500 text-xs italic">
-                Vui lòng chọn một Vòng đấu phía trên để quản lý bộ Rubric tiêu
-                chí chấm điểm tương ứng.
-              </div>
-            )}
+                )
+              ) : (
+                <p className="text-xs text-slate-500 italic text-center py-4 font-mono">Vui lòng chọn Vòng Đấu để cấu hình Rubric.</p>
+              )}
+            </div>
           </div>
 
           {/* Right Column: Roles & Exam uploads */}
@@ -1737,7 +2239,125 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      ) : (
+          /* GitHub Integration Tab */
+          <div className="glass p-6 rounded-2xl w-full mt-2 space-y-6 font-mono">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Github size={18} className="text-indigo-400" />
+              <span>Quản lý GitHub Repositories của các đội thi</span>
+            </h3>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Repos List */}
+              <div className="lg:col-span-2 space-y-4">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Danh sách Repositories ({repos.length})</h4>
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {repos.map((r: any) => (
+                    <div key={r._id} className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-xs">
+                      <div className="space-y-1">
+                        <p className="font-bold text-slate-200">{r.teamId?.name || 'Đội thi'}</p>
+                        <a href={r.repoUrl} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline break-all block">{r.repoUrl || r.repoName}</a>
+                        <div className="flex gap-2 text-[10px] text-slate-400">
+                          <span>Mặc định: <span className="text-slate-300 font-semibold">{r.defaultBranch || 'main'}</span></span>
+                          <span>•</span>
+                          <span>Đồng bộ cuối: <span className="text-slate-300">{r.lastSyncedAt ? new Date(r.lastSyncedAt).toLocaleString() : 'Chưa đồng bộ'}</span></span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          r.syncStatus === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          r.syncStatus === 'syncing' ? 'bg-indigo-500/10 text-indigo-400 animate-pulse border border-indigo-500/20' :
+                          r.syncStatus === 'failed' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700/50'
+                        }`}>
+                          {r.syncStatus.toUpperCase()}
+                        </span>
+                        <button
+                          onClick={() => handleSyncRepo(r._id)}
+                          disabled={syncingRepoId === r._id}
+                          className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-850 text-white px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {syncingRepoId === r._id ? 'Đang sync...' : 'AI Sync'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {repos.length === 0 && <p className="text-xs text-slate-500 italic">Chưa có repository nào được cấu hình cho cuộc thi này.</p>}
+                </div>
+              </div>
+
+              {/* Provision or Link Repo */}
+              <div className="space-y-6">
+                {/* Auto Provision list */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Cấp Repo tự động</h4>
+                  <p className="text-[10px] text-slate-550">Tạo repo riêng tư trong tổ chức GitHub và phân quyền cho các thành viên đã xác nhận.</p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).map((t: any) => (
+                      <div key={t._id} className="bg-slate-900/30 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                        <span className="font-semibold text-slate-300 truncate max-w-[120px]">{t.name}</span>
+                        <button
+                          onClick={() => handleCreateRepo(t._id)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-lg text-[9px] font-bold cursor-pointer"
+                        >
+                          Tạo Repo
+                        </button>
+                      </div>
+                    ))}
+                    {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).length === 0 && (
+                      <p className="text-[10px] text-slate-500 italic">Tất cả đội confirmed đã được cấp repo.</p>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="border-slate-800" />
+
+                {/* Manual Link Form */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Liên kết repo thủ công</h4>
+                  <form onSubmit={handleLinkRepo} className="space-y-2">
+                    <select
+                      value={linkingTeamId}
+                      onChange={e => setLinkingTeamId(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                    >
+                      <option value="">Chọn đội...</option>
+                      {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).map((t: any) => (
+                        <option key={t._id} value={t._id}>{t.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Tên Repo (e.g. team-alpha-repo)"
+                      value={manualRepoName}
+                      onChange={e => setManualRepoName(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                    />
+                    <input
+                      type="url"
+                      placeholder="Link Repo (https://github.com/...)"
+                      value={manualRepoUrl}
+                      onChange={e => setManualRepoUrl(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg cursor-pointer"
+                    >
+                      Liên kết Repo
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
   );
 }
