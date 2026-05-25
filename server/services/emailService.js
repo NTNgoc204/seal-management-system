@@ -21,7 +21,7 @@ if (!isMock) {
  * Unified email sending helper supporting both Brevo HTTP API and standard Nodemailer SMTP
  */
 async function sendMailHelper(mailOptions) {
-  const isBrevoApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('xsmtpsib-');
+  const isBrevoApi = process.env.EMAIL_PASS && (process.env.EMAIL_PASS.startsWith('xsmtpsib-') || process.env.EMAIL_PASS.startsWith('xkeysib-'));
   const isResendApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('re_');
 
   if (isResendApi) {
