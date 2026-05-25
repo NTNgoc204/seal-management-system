@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const fetch = globalThis.fetch || require('node-fetch');
 
 const isMock = process.env.EMAIL_SERVICE_MOCK === 'true';
 
@@ -14,6 +15,59 @@ if (!isMock) {
       pass: process.env.EMAIL_PASS
     }
   });
+}
+
+/**
+ * Unified email sending helper supporting both Brevo HTTP API and standard Nodemailer SMTP
+ */
+async function sendMailHelper(mailOptions) {
+  const isBrevoApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('xsmtpsib-');
+
+  if (isBrevoApi) {
+    console.log('[EMAIL] Detected Brevo API key. Routing mail through secure HTTP API (Port 443)...');
+    try {
+      let senderName = 'SEAL Hackathon';
+      let senderEmail = process.env.EMAIL_FROM || 'no-reply@domain.com';
+
+      // Parse sender format: "Name" <email@domain.com>
+      const fromMatch = senderEmail.match(/^(?:"?([^"]*)"?\s)?(?:<(.+)>)$/);
+      if (fromMatch) {
+        senderName = fromMatch[1] || senderName;
+        senderEmail = fromMatch[2];
+      } else if (senderEmail.includes('@')) {
+        senderName = senderEmail.split('@')[0];
+      }
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': process.env.EMAIL_PASS,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: mailOptions.to }],
+          subject: mailOptions.subject,
+          htmlContent: mailOptions.html
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || `HTTP ${response.status}`);
+      }
+
+      const resData = await response.json();
+      console.log(`[EMAIL] Brevo HTTP API Success! Message ID: ${resData.messageId}`);
+      return { messageId: resData.messageId };
+    } catch (apiErr) {
+      console.error(`[EMAIL] Brevo HTTP API failed: ${apiErr.message}. Falling back to standard SMTP.`);
+    }
+  }
+
+  // Fallback to SMTP
+  return await transporter.sendMail(mailOptions);
 }
 
 /**
@@ -56,7 +110,7 @@ async function sendTeamInvitation(email, teamName, inviteLink) {
   }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sendMailHelper(mailOptions);
     console.log(`Email sent: ${info.messageId}`);
     return true;
   } catch (error) {
@@ -110,7 +164,7 @@ async function sendEmailVerification(email, fullName, verifyLink) {
   }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sendMailHelper(mailOptions);
     console.log(`Verification email sent: ${info.messageId}`);
     return true;
   } catch (error) {
@@ -165,7 +219,7 @@ async function sendEventCreationNotification(email, fullName, eventName, semeste
   }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sendMailHelper(mailOptions);
     console.log(`Event notification email sent to ${email}: ${info.messageId}`);
     return true;
   } catch (error) {
