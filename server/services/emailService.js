@@ -24,6 +24,17 @@ async function sendMailHelper(mailOptions) {
   const isBrevoApi = process.env.EMAIL_PASS && (process.env.EMAIL_PASS.startsWith('xsmtpsib-') || process.env.EMAIL_PASS.startsWith('xkeysib-'));
   const isResendApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('re_');
 
+  // Parse recipient format: "Name" <email@domain.com> or email@domain.com
+  let recipientEmail = mailOptions.to;
+  let recipientName = '';
+  if (typeof recipientEmail === 'string') {
+    const toMatch = recipientEmail.match(/^(?:"?([^"]*)"?\s)?(?:<(.+)>)$/);
+    if (toMatch) {
+      recipientName = toMatch[1] || '';
+      recipientEmail = toMatch[2];
+    }
+  }
+
   if (isResendApi) {
     console.log('[EMAIL] Detected Resend API key. Routing mail through secure Resend HTTP API (Port 443)...');
     try {
@@ -41,7 +52,7 @@ async function sendMailHelper(mailOptions) {
         },
         body: JSON.stringify({
           from: `SEAL Hackathon <${senderEmail}>`,
-          to: [mailOptions.to],
+          to: [recipientEmail],
           subject: mailOptions.subject,
           html: mailOptions.html
         })
@@ -57,6 +68,7 @@ async function sendMailHelper(mailOptions) {
       return { messageId: resData.id };
     } catch (apiErr) {
       console.error(`[EMAIL] Resend HTTP API failed: ${apiErr.message}. Falling back to standard SMTP.`);
+      throw apiErr;
     }
   }
 
@@ -75,6 +87,11 @@ async function sendMailHelper(mailOptions) {
         senderName = senderEmail.split('@')[0];
       }
 
+      const toField = { email: recipientEmail };
+      if (recipientName) {
+        toField.name = recipientName;
+      }
+
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -84,7 +101,7 @@ async function sendMailHelper(mailOptions) {
         },
         body: JSON.stringify({
           sender: { name: senderName, email: senderEmail },
-          to: [{ email: mailOptions.to }],
+          to: [toField],
           subject: mailOptions.subject,
           htmlContent: mailOptions.html
         })
@@ -100,6 +117,7 @@ async function sendMailHelper(mailOptions) {
       return { messageId: resData.messageId };
     } catch (apiErr) {
       console.error(`[EMAIL] Brevo HTTP API failed: ${apiErr.message}. Falling back to standard SMTP.`);
+      throw apiErr;
     }
   }
 
@@ -157,7 +175,7 @@ async function sendTeamInvitation(email, teamName, inviteLink) {
     console.log(`To: ${email}`);
     console.log(`Confirmation Link: ${inviteLink}`);
     console.log('-----------------------------\n');
-    return true;
+    return false;
   }
 }
 
@@ -210,7 +228,7 @@ async function sendEmailVerification(email, fullName, verifyLink) {
     console.log(`To: ${email}`);
     console.log(`Verification Link: ${verifyLink}`);
     console.log('-------------------------------------\n');
-    return true;
+    return false;
   }
 }
 
@@ -261,7 +279,7 @@ async function sendEventCreationNotification(email, fullName, eventName, semeste
     return true;
   } catch (error) {
     console.error(`Error sending event notification email to ${email}:`, error);
-    return true;
+    return false;
   }
 }
 
