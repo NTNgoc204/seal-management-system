@@ -171,8 +171,30 @@ async function runTests() {
     githubUsername: 'git-leader-seal',
     studentId: 'SE180001'
   });
-  const leaderToken = leaderReg.token;
-  console.log(`Leader registered: ${leaderReg.user.fullName}`);
+  
+  console.log('Leader registration response received. Verifying email token from DB...');
+  const User = mongoose.model('User');
+  const leaderUser = await User.findOne({ email: 'leader@seal.com' });
+  const verifyToken = leaderUser.emailVerificationToken;
+  console.log(`Verification token from DB: ${verifyToken}`);
+  
+  // Call verify-email endpoint
+  const verifyRes = await fetch(`http://localhost:5000/api/auth/verify-email?token=${verifyToken}`);
+  const verifyHtml = await verifyRes.text();
+  if (verifyHtml.includes('NODE_ACTIVATED')) {
+    console.log('Leader email verified successfully (Status 200 OK)');
+  } else {
+    throw new Error('Failed to verify email for Leader');
+  }
+
+  // Login to get token
+  console.log('Logging in verified Leader...');
+  const leaderLogin = await post('/auth/login', {
+    email: 'leader@seal.com',
+    password: 'password123'
+  });
+  const leaderToken = leaderLogin.token;
+  console.log(`Leader logged in successfully. Token: ${leaderToken.substring(0, 15)}...`);
 
   // 8. Register Team & Invite Members
   console.log('\n[Step 8] Registering Team "Dev Rangers" and inviting member1 & member2...');

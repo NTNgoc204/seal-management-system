@@ -9,6 +9,7 @@ const User = mongoose.model('User');
 const Event = mongoose.model('Event');
 const Track = mongoose.model('Track');
 const GithubRepository = mongoose.model('GithubRepository');
+const EventRole = mongoose.model('EventRole');
 
 const emailService = require('../services/emailService');
 const githubService = require('../services/githubService');
@@ -22,7 +23,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 router.post('/register', authenticateToken, async (req, res) => {
   const { eventId, trackId, teamName, membersList } = req.body;
 
-  if (!eventId || !trackId || !teamName || !membersList || !Array.isArray(membersList)) {
+  if (!eventId || !teamName || !membersList || !Array.isArray(membersList)) {
     return res.status(400).json({ message: 'Missing required registration parameters.' });
   }
 
@@ -40,25 +41,29 @@ router.post('/register', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'This event has reached its maximum team capacity.' });
     }
 
-    // Check track capacity
-    const track = await Track.findById(trackId);
-    if (!track) return res.status(404).json({ message: 'Track not found.' });
-    
-    const trackConfirmedCount = await Team.countDocuments({ trackId, status: 'confirmed' });
-    if (track.maxTeams && trackConfirmedCount >= track.maxTeams) {
-      return res.status(400).json({ message: 'This track has reached its maximum team capacity.' });
+    // Check track capacity if trackId is provided
+    if (trackId) {
+      const track = await Track.findById(trackId);
+      if (!track) return res.status(404).json({ message: 'Track not found.' });
+      
+      const trackConfirmedCount = await Team.countDocuments({ trackId, status: 'confirmed' });
+      if (track.maxTeams && trackConfirmedCount >= track.maxTeams) {
+        return res.status(400).json({ message: 'This track has reached its maximum team capacity.' });
+      }
     }
 
-    // 2. Validate that team name is unique inside the event track
-    const existingTeam = await Team.findOne({ eventId, trackId, name: teamName });
+    // 2. Validate that team name is unique inside the event
+    const nameFilter = { eventId, name: teamName };
+    if (trackId) nameFilter.trackId = trackId;
+    const existingTeam = await Team.findOne(nameFilter);
     if (existingTeam) {
-      return res.status(400).json({ message: 'A team with this name already exists in this track.' });
+      return res.status(400).json({ message: 'A team with this name already exists.' });
     }
 
     // 3. Create the Team record
     const team = new Team({
       eventId,
-      trackId,
+      trackId: trackId || undefined,
       leaderId: req.user._id,
       name: teamName,
       status: 'pending_confirm'
@@ -173,27 +178,32 @@ router.get('/confirm-invite', async (req, res) => {
 
       console.log(`[TEAM] Team "${team.name}" is now FULLY CONFIRMED! Creating repo...`);
 
-      // 1. Automatically create Github Repository
-      // Slugify name
-      const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-      const gitResult = await githubService.createTeamRepository(slugRepoName, 'private');
-      
-      const newRepo = new GithubRepository({
-        eventId: team.eventId,
-        trackId: team.trackId,
-        teamId: team._id,
-        repoName: slugRepoName,
-        repoUrl: gitResult.repoUrl,
-        githubRepoId: gitResult.githubRepoId,
-        syncStatus: 'not_synced'
-      });
-      await newRepo.save();
+      // 1. Automatically create Github Repository only if trackId is assigned
+      if (team.trackId) {
+        try {
+          const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+          const gitResult = await githubService.createTeamRepository(slugRepoName, 'private');
+          
+          const newRepo = new GithubRepository({
+            eventId: team.eventId,
+            trackId: team.trackId,
+            teamId: team._id,
+            repoName: slugRepoName,
+            repoUrl: gitResult.repoUrl,
+            githubRepoId: gitResult.githubRepoId,
+            syncStatus: 'not_synced'
+          });
+          await newRepo.save();
 
-      // 2. Add collaborators
-      const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
-      for (const tm of populatedMembers) {
-        if (tm.userId && tm.userId.githubUsername) {
-          await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+          // 2. Add collaborators
+          const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
+          for (const tm of populatedMembers) {
+            if (tm.userId && tm.userId.githubUsername) {
+              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+            }
+          }
+        } catch (gitErr) {
+          console.error('Lỗi tự động tạo repo GitHub:', gitErr.message);
         }
       }
 
@@ -322,6 +332,90 @@ router.get('/all/:eventId', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Get All Teams Error:', error.message);
     res.status(500).json({ message: 'Server error retrieving teams.' });
+  }
+});
+
+/**
+ * @route   PUT /api/teams/:teamId/assign-track
+ * @desc    Assign a team to a track (specific or random) and provision GitHub Repo
+ * @access  Private (Coordinator or Admin)
+ */
+router.put('/:teamId/assign-track', authenticateToken, async (req, res) => {
+  const { teamId } = req.params;
+  const { trackId } = req.body; // can be a trackId or 'random'
+
+  try {
+    const team = await Team.findById(teamId);
+    if (!team) return res.status(404).json({ message: 'Không tìm thấy đội thi.' });
+
+    // Auth check
+    if (!req.user.isSystemAdmin) {
+      const coordinatorRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId: team.eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized. Coordinator or Admin role required.' });
+    }
+
+    let targetTrackId = trackId;
+
+    if (trackId === 'random') {
+      const tracks = await Track.find({ eventId: team.eventId });
+      if (tracks.length === 0) {
+        return res.status(400).json({ message: 'Sự kiện chưa có bảng đấu nào. Vui lòng tạo bảng đấu trước.' });
+      }
+      const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+      targetTrackId = randomTrack._id;
+    }
+
+    const track = await Track.findById(targetTrackId);
+    if (!track) return res.status(404).json({ message: 'Bảng đấu không tồn tại.' });
+
+    team.trackId = track._id;
+    await team.save();
+
+    // Trigger GitHub Repo creation in the background
+    const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    
+    // Check if repo already exists for this team
+    const existingRepo = await GithubRepository.findOne({ teamId: team._id });
+    if (!existingRepo) {
+      githubService.createTeamRepository(slugRepoName, 'private')
+        .then(async (gitResult) => {
+          const newRepo = new GithubRepository({
+            eventId: team.eventId,
+            trackId: track._id,
+            teamId: team._id,
+            repoName: slugRepoName,
+            repoUrl: gitResult.repoUrl,
+            githubRepoId: gitResult.githubRepoId,
+            syncStatus: 'not_synced'
+          });
+          await newRepo.save();
+
+          const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
+          for (const tm of populatedMembers) {
+            if (tm.userId && tm.userId.githubUsername) {
+              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+            }
+          }
+          console.log(`[ASSIGN TRACK] Provisioned GitHub repo and added collaborators for team: ${team.name}`);
+        })
+        .catch((gitErr) => {
+          console.error(`[ASSIGN TRACK] Error provisioning GitHub repo for team ${team.name}:`, gitErr.message);
+        });
+    }
+
+    res.json({
+      message: `Đã phân đội ${team.name} vào bảng đấu ${track.name} thành công.`,
+      team
+    });
+
+  } catch (error) {
+    console.error('Assign Track Error:', error.message);
+    res.status(500).json({ message: 'Server error during track assignment.' });
   }
 });
 

@@ -6,6 +6,13 @@ const Event = mongoose.model('Event');
 const Track = mongoose.model('Track');
 const Round = mongoose.model('Round');
 const EventRole = mongoose.model('EventRole');
+const User = mongoose.model('User');
+const Team = mongoose.model('Team');
+const TeamMember = mongoose.model('TeamMember');
+const GithubRepository = mongoose.model('GithubRepository');
+
+const emailService = require('../services/emailService');
+const githubService = require('../services/githubService');
 const { authenticateToken, requireSystemAdmin, requireEventRole } = require('../middleware/authMiddleware');
 
 /**
@@ -74,6 +81,19 @@ router.post('/', authenticateToken, requireSystemAdmin, async (req, res) => {
       assignedBy: req.user._id
     });
     await creatorRole.save();
+
+    // Send email notifications to all members (non-admins) in the background
+    User.find({ isSystemAdmin: false }).then(users => {
+      users.forEach(user => {
+        emailService.sendEventCreationNotification(
+          user.email,
+          user.fullName,
+          newEvent.name,
+          newEvent.semester,
+          newEvent.year
+        ).catch(err => console.error(`Failed to send event notification to ${user.email}:`, err.message));
+      });
+    }).catch(err => console.error('Error fetching users for event creation notification:', err.message));
 
     res.status(201).json({
       message: 'Event created successfully!',
@@ -259,6 +279,177 @@ router.post('/:eventId/upload-exam', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Upload Exam Details Error:', error.message);
     res.status(500).json({ message: 'Server error saving exam attachments.' });
+  }
+});
+
+/**
+ * @route   GET /api/events/:eventId/roles
+ * @desc    Get all assigned roles for an event
+ * @access  Private (Coordinator or Admin)
+ */
+router.get('/:eventId/roles', authenticateToken, async (req, res) => {
+  const { eventId } = req.params;
+  
+  try {
+    // Auth Check
+    if (!req.user.isSystemAdmin) {
+      const coordinatorRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized. Coordinator role required.' });
+    }
+
+    const roles = await EventRole.find({ eventId, status: 'active' })
+      .populate('userId', 'email fullName studentId university githubUsername')
+      .populate('trackId', 'name');
+
+    res.json(roles);
+  } catch (error) {
+    console.error('Fetch Event Roles Error:', error.message);
+    res.status(500).json({ message: 'Server error retrieving roles.' });
+  }
+});
+
+/**
+ * @route   DELETE /api/events/:eventId/roles/:roleId
+ * @desc    Remove an event role assignment
+ * @access  Private (Coordinator or Admin)
+ */
+router.delete('/:eventId/roles/:roleId', authenticateToken, async (req, res) => {
+  const { eventId, roleId } = req.params;
+
+  try {
+    // Auth Check
+    if (!req.user.isSystemAdmin) {
+      const coordinatorRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized.' });
+    }
+
+    const roleToUpdate = await EventRole.findById(roleId);
+    if (!roleToUpdate) return res.status(404).json({ message: 'Role assignment not found.' });
+
+    // Mark status as removed
+    roleToUpdate.status = 'removed';
+    await roleToUpdate.save();
+
+    res.json({ message: 'Successfully removed role assignment.' });
+  } catch (error) {
+    console.error('Remove Role Error:', error.message);
+    res.status(500).json({ message: 'Server error removing role.' });
+  }
+});
+
+/**
+ * @route   POST /api/events/:eventId/distribute-teams
+ * @desc    Randomly distribute confirmed teams (without trackId) to tracks of this event
+ * @access  Private (Coordinator or Admin)
+ */
+router.post('/:eventId/distribute-teams', authenticateToken, async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    // 1. Auth Check (Admin or Coordinator)
+    if (!req.user.isSystemAdmin) {
+      const coordinatorRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized. Coordinator or Admin role required.' });
+    }
+
+    // 2. Fetch tracks
+    const tracks = await Track.find({ eventId });
+    if (tracks.length === 0) {
+      return res.status(400).json({ message: 'Sự kiện này chưa có bảng đấu nào. Vui lòng tạo bảng đấu trước.' });
+    }
+
+    // 3. Fetch confirmed teams without trackId
+    const teams = await Team.find({ 
+      eventId, 
+      status: 'confirmed', 
+      $or: [{ trackId: null }, { trackId: { $exists: false } }] 
+    });
+    
+    if (teams.length === 0) {
+      return res.status(400).json({ message: 'Không tìm thấy nhóm thi đấu nào đã xác nhận mà chưa chia bảng.' });
+    }
+
+    // 4. Shuffle teams (Fisher-Yates)
+    const shuffledTeams = [...teams];
+    for (let i = shuffledTeams.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledTeams[i], shuffledTeams[j]] = [shuffledTeams[j], shuffledTeams[i]];
+    }
+
+    // 5. Distribute teams to tracks evenly
+    const distributionResult = [];
+    for (let i = 0; i < shuffledTeams.length; i++) {
+      const team = shuffledTeams[i];
+      const trackIndex = i % tracks.length;
+      const track = tracks[trackIndex];
+
+      team.trackId = track._id;
+      await team.save();
+
+      // Trigger GitHub Repo creation in the background
+      const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      
+      githubService.createTeamRepository(slugRepoName, 'private')
+        .then(async (gitResult) => {
+          // Check if repo already exists for this team
+          const existingRepo = await GithubRepository.findOne({ teamId: team._id });
+          if (!existingRepo) {
+            const newRepo = new GithubRepository({
+              eventId: team.eventId,
+              trackId: track._id,
+              teamId: team._id,
+              repoName: slugRepoName,
+              repoUrl: gitResult.repoUrl,
+              githubRepoId: gitResult.githubRepoId,
+              syncStatus: 'not_synced'
+            });
+            await newRepo.save();
+
+            // Add collaborators
+            const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
+            for (const tm of populatedMembers) {
+              if (tm.userId && tm.userId.githubUsername) {
+                await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+              }
+            }
+            console.log(`[DISTRIBUTION] Provisioned GitHub repo and added collaborators for team: ${team.name}`);
+          }
+        })
+        .catch(gitErr => {
+          console.error(`[DISTRIBUTION] Error provisioning GitHub repo for team ${team.name}:`, gitErr.message);
+        });
+
+      distributionResult.push({
+        teamId: team._id,
+        teamName: team.name,
+        trackId: track._id,
+        trackName: track.name
+      });
+    }
+
+    res.json({
+      message: `Đã phân chia thành công ${shuffledTeams.length} đội thi vào ${tracks.length} bảng đấu.`,
+      distribution: distributionResult
+    });
+
+  } catch (error) {
+    console.error('Distribute Teams Error:', error.message);
+    res.status(500).json({ message: 'Server error during team distribution.' });
   }
 });
 

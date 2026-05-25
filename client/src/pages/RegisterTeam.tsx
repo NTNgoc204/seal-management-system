@@ -84,7 +84,7 @@ export default function RegisterTeam() {
       return;
     }
 
-    if (!selectedTrackId) {
+    if (tracks.length > 0 && !selectedTrackId) {
       setError('Vui lòng chọn bảng đấu/chủ đề.');
       setLoading(false);
       return;
@@ -95,7 +95,7 @@ export default function RegisterTeam() {
         'http://localhost:5000/api/teams/register',
         {
           eventId: selectedEventId,
-          trackId: selectedTrackId,
+          trackId: selectedTrackId || undefined,
           teamName: teamName.trim(),
           membersList: members.filter(m => m.email.trim() !== '')
         },
@@ -189,13 +189,14 @@ export default function RegisterTeam() {
                   value={selectedTrackId}
                   onChange={e => setSelectedTrackId(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl text-sm"
+                  disabled={tracks.length === 0}
                 >
                   {tracks.map(t => (
                     <option key={t._id} value={t._id}>
                       {t.name} (Tối đa: {t.maxTeams || 10} đội)
                     </option>
                   ))}
-                  {tracks.length === 0 && <option>Không có bảng đấu nào</option>}
+                  {tracks.length === 0 && <option value="">[TỰ ĐỘNG CHIA BẢNG ĐẤU SAU]</option>}
                 </select>
               </div>
             </div>

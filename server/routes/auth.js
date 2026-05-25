@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const User = mongoose.model('User');
 const EventRole = mongoose.model('EventRole');
 const { authenticateToken, requireSystemAdmin } = require('../middleware/authMiddleware');
+const emailService = require('../services/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'seal_hackathon_secret_key_2026';
 
@@ -36,6 +37,10 @@ router.post('/register', async (req, res) => {
 
     // Create user. First user registered is auto system admin for testing ease.
     const isFirstUser = (await User.countDocuments({})) === 0;
+    
+    // Generate verification token
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
     const user = new User({
       email: email.toLowerCase(),
@@ -45,12 +50,26 @@ router.post('/register', async (req, res) => {
       university,
       githubUsername,
       isSystemAdmin: isFirstUser,
-      isApproved: true // Auto-approve for demo
+      isApproved: isFirstUser, // Auto-approve only the first user (system admin)
+      emailVerificationToken,
+      emailVerificationTokenExpiry
     });
 
     await user.save();
 
-    // Generate JWT
+    if (!isFirstUser) {
+      // Send verification email
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+      const verifyLink = `${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}`;
+      await emailService.sendEmailVerification(user.email, user.fullName, verifyLink);
+
+      return res.status(201).json({
+        message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
+        requiresVerification: true
+      });
+    }
+
+    // First user is auto-logged in
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '24h' });
 
     res.status(201).json({
@@ -87,6 +106,14 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    // Check if user is approved (email verified)
+    if (!user.isApproved) {
+      return res.status(403).json({ 
+        message: 'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email của bạn để xác thực tài khoản.',
+        requiresVerification: true 
+      });
     }
 
     // Match password
@@ -448,6 +475,144 @@ router.post('/github', async (req, res) => {
   } catch (error) {
     console.error('GitHub Login DB Error:', error.message);
     res.status(500).json({ message: 'Server error processing GitHub account.' });
+  }
+});
+
+/**
+ * @route   GET /api/auth/verify-email
+ * @desc    Verify email token and approve user account
+ * @access  Public
+ */
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html class="dark" lang="vi">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SEAL HACKATHON // ACTIVATION ERROR</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <style>
+          body {
+            background-color: #0a141d;
+            background-image: 
+              linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+          }
+        </style>
+      </head>
+      <body class="min-h-screen text-slate-300 font-sans flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-[#0a141d]/90 border border-red-500/30 backdrop-blur-md p-8 rounded-xl text-center shadow-2xl relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-80 animate-pulse"></div>
+          <div class="inline-flex border border-red-500 px-3 py-1 text-xs font-mono text-red-500 mb-6 bg-red-500/5 uppercase tracking-widest rounded">[PROTOCOL_ACTIVATION_FAILED]</div>
+          <div class="w-20 h-20 mx-auto mb-6 rounded-full border border-red-500 flex items-center justify-center bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+            <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-extrabold text-white mb-3 uppercase tracking-tight font-mono">MÃ XÁC THỰC RỖNG</h1>
+          <p class="text-sm text-slate-400 mb-8 font-sans leading-relaxed">Không tìm thấy mã xác thực (token) trong yêu cầu kích hoạt tài khoản của bạn.</p>
+          <a href="http://localhost:5173/login" class="inline-block w-full py-3 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[inset_0_0_10px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]">QUAY LẠI TRANG ĐĂNG NHẬP</a>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+
+  try {
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationTokenExpiry: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html class="dark" lang="vi">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>SEAL HACKATHON // ACTIVATION ERROR</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+          <style>
+            body {
+              background-color: #0a141d;
+              background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+              background-size: 40px 40px;
+            }
+          </style>
+        </head>
+        <body class="min-h-screen text-slate-300 font-sans flex items-center justify-center p-4">
+          <div class="w-full max-w-md bg-[#0a141d]/90 border border-red-500/30 backdrop-blur-md p-8 rounded-xl text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-80 animate-pulse"></div>
+            <div class="inline-flex border border-red-500 px-3 py-1 text-xs font-mono text-red-500 mb-6 bg-red-500/5 uppercase tracking-widest rounded">[PROTOCOL_ACTIVATION_FAILED]</div>
+            <div class="w-20 h-20 mx-auto mb-6 rounded-full border border-red-500 flex items-center justify-center bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+              <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-white mb-3 uppercase tracking-tight font-mono">LIÊN KẾT HẾT HẠN</h1>
+            <p class="text-sm text-slate-400 mb-8 font-sans leading-relaxed">Mã xác thực không hợp lệ hoặc đường link kích hoạt của bạn đã hết hạn (24 giờ). Vui lòng thử đăng ký lại.</p>
+            <a href="http://localhost:5173/login" class="inline-block w-full py-3 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[inset_0_0_10px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]">QUAY LẠI TRANG ĐĂNG NHẬP</a>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // Approve the account
+    user.isApproved = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationTokenExpiry = undefined;
+    await user.save();
+
+    res.send(`
+      <!DOCTYPE html>
+      <html class="dark" lang="vi">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SEAL HACKATHON // NODE ACTIVATED</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <style>
+          body {
+            background-color: #0a141d;
+            background-image: 
+              linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+          }
+        </style>
+      </head>
+      <body class="min-h-screen text-slate-300 font-sans flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-[#0a141d]/90 border border-[#00f0ff]/30 backdrop-blur-md p-8 rounded-xl text-center shadow-2xl relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00f0ff] to-transparent opacity-80 animate-pulse"></div>
+          <div class="inline-flex border border-[#00f0ff] px-3 py-1 text-xs font-mono text-[#00f0ff] mb-6 bg-[#00f0ff]/5 uppercase tracking-widest rounded">[PROTOCOL_ACTIVATION_SUCCESS]</div>
+          <div class="w-20 h-20 mx-auto mb-6 rounded-full border border-[#00f0ff] flex items-center justify-center bg-[#00f0ff]/10 shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+            <svg class="w-10 h-10 text-[#00f0ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-extrabold text-white mb-3 uppercase tracking-tight font-mono">NODE_ACTIVATED</h1>
+          <p class="text-sm text-slate-400 mb-8 font-sans leading-relaxed">Xin chúc mừng! Tài khoản của bạn đã được kích hoạt thành công trên hệ thống SEAL Hackathon. Khóa bảo mật đã được đồng bộ.</p>
+          <a href="http://localhost:5173/login" class="inline-block w-full py-3 border border-[#00f0ff] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0a141d] font-mono text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,240,255,0.1)] hover:shadow-[0_0_20px_rgba(0,240,255,0.4)]">ĐĂNG NHẬP NGAY</a>
+        </div>
+      </body>
+      </html>
+    `);
+
+  } catch (error) {
+    console.error('Email Verification Route Error:', error.message);
+    res.status(500).send('Server error during email verification.');
   }
 });
 

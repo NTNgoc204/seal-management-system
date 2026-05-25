@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const GithubRepositorySchema = new Schema({
   eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
-  trackId: { type: Schema.Types.ObjectId, ref: 'Track', required: true },
+  trackId: { type: Schema.Types.ObjectId, ref: 'Track' },
   teamId: { type: Schema.Types.ObjectId, ref: 'Team', required: true },
   orgName: { type: String },
   repoName: { type: String, required: true },
