@@ -175,7 +175,7 @@ async function sendTeamInvitation(email, teamName, inviteLink) {
     console.log(`To: ${email}`);
     console.log(`Confirmation Link: ${inviteLink}`);
     console.log('-----------------------------\n');
-    return false;
+    throw error;
   }
 }
 
@@ -228,7 +228,7 @@ async function sendEmailVerification(email, fullName, verifyLink) {
     console.log(`To: ${email}`);
     console.log(`Verification Link: ${verifyLink}`);
     console.log('-------------------------------------\n');
-    return false;
+    throw error;
   }
 }
 
@@ -279,7 +279,7 @@ async function sendEventCreationNotification(email, fullName, eventName, semeste
     return true;
   } catch (error) {
     console.error(`Error sending event notification email to ${email}:`, error);
-    return false;
+    throw error;
   }
 }
 
