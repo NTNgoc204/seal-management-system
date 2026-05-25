@@ -1,13 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
-  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+@theme {
+  --color-primary: #dbfcff;
+  --color-primary-container: #00f0ff;
+  --color-on-primary-container: #00363a;
+  --color-surface: #0a141d;
+  --color-surface-dim: #0a141d;
+  --color-surface-container-lowest: #060f17;
+  --color-surface-container-low: #131d25;
+  --color-surface-container: #172129;
+  --color-surface-container-high: #212b34;
+  --color-surface-container-highest: #2c363f;
+  --color-on-surface: #dae3f0;
+  --color-on-surface-variant: #b9cacb;
+  --color-outline: #849495;
+  --color-outline-variant: #3b494b;
+  
+  --font-sans: 'Inter', 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 body {
-  background-color: #090d16;
-  color: #f8fafc;
+  background-color: #0a141d;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  color: #dae3f0;
   overflow-x: hidden;
   min-height: 100vh;
 }
@@ -87,8 +107,215 @@ input, select, textarea {
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #6366f1;
+  border-color: #00f0ff;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.15), 0 0 10px rgba(0, 240, 255, 0.2);
   background-color: rgba(15, 23, 42, 0.8);
+}
+
+/* JetBrains Mono Utility */
+.font-mono-tech {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Cyberpunk HUD elements */
+.border-hud {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.border-hud-active {
+  border-color: #00f0ff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+}
+
+/* Electric Cyan Glow */
+.glow-cyan {
+  box-shadow: 0 0 40px -10px rgba(0, 240, 255, 0.15);
+}
+.text-cyan-glow {
+  color: #00f0ff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+.bg-cyan-glow {
+  background-color: #00f0ff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+/* Laser Scanning Line Animation */
+@keyframes laser-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.laser-scan-effect {
+  position: relative;
+  overflow: hidden;
+}
+.laser-scan-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+  animation: laser-scan 3s infinite linear;
+  pointer-events: none;
+}
+
+/* Glass Panel from mockup */
+.glass-panel {
+  background-color: rgba(10, 20, 29, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 240, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.glass-panel:hover, .glass-panel:focus-within {
+  border-color: #00f0ff;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(0, 240, 255, 0.1);
+}
+
+/* Cyber Input Wrapper */
+.cyber-input-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+.cyber-input-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 4px;
+  background: conic-gradient(from 0deg, transparent 70%, #00f0ff 100%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+  animation: rotateScan 2s linear infinite;
+}
+
+.cyber-input-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: #172129;
+  z-index: -1;
+  transition: background 0.3s;
+}
+
+.cyber-input-wrapper:focus-within::before {
+  opacity: 1;
+}
+
+.cyber-input-wrapper:focus-within::after {
+  background: rgba(0, 20, 30, 0.8);
+}
+
+@keyframes rotateScan {
+  100% { transform: rotate(360deg); }
+}
+
+.cyber-input {
+  background-color: rgba(23, 33, 41, 0.4) !important;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: #dae3f0;
+  transition: all 0.3s ease;
+}
+
+.cyber-input:focus {
+  border-color: transparent;
+  outline: none;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+}
+
+.scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #00f0ff;
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cyber-input-wrapper:focus-within .scanline {
+  animation: scan 1.5s ease-out infinite;
+}
+
+@keyframes scan {
+  0% { transform: translateY(0); opacity: 0.8; }
+  100% { transform: translateY(40px); opacity: 0; }
+}
+
+.btn-primary {
+  background-color: transparent;
+  color: #00f0ff;
+  border: 1px solid #00f0ff;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+  box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+.btn-primary:hover {
+  background-color: #00f0ff;
+  color: #000;
+  box-shadow: 0 0 20px #00f0ff;
+  text-shadow: none;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: #dae3f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  border-color: #00f0ff;
+  color: #00f0ff;
+}
+
+.chip {
+  display: inline-block;
+  border: 1px solid #00f0ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+}
+
+.terminal-prompt::before {
+  content: ">_";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #00f0ff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  z-index: 2;
+}
+
+.logo-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 240, 255, 0.4)); }
+  50% { filter: drop-shadow(0 0 25px rgba(0, 240, 255, 0.7)); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
 }

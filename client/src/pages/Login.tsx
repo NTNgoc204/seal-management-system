@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ShieldCheck, Mail, Lock, User, BookOpen, Terminal } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 const Github = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
   <svg
@@ -27,6 +27,8 @@ interface LoginProps {
 
 export default function Login({ onLoginSuccess }: LoginProps) {
   const [isRegister, setIsRegister] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [isVerificationPending, setIsVerificationPending] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -144,9 +146,19 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           university,
           githubUsername
         });
-        const { token, user } = response.data;
-        onLoginSuccess(token, user, []);
-        navigate('/');
+        
+        // Auto-login if first user (API returns token directly)
+        if (response.data.token) {
+          const { token, user, roles } = response.data;
+          onLoginSuccess(token, user, roles || []);
+          if (user.isSystemAdmin || (roles && roles.some((r: any) => r.role === 'coordinator'))) {
+            navigate('/admin');
+          } else {
+            navigate('/team-area');
+          }
+        } else {
+          setRegistrationSuccess(true);
+        }
       } else {
         const response = await axios.post(`${baseUrl}/auth/login`, {
           email,
@@ -166,148 +178,232 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.');
+      if (err.response?.status === 403 && err.response?.data?.requiresVerification) {
+        setIsVerificationPending(true);
+      } else {
+        setError(err.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-height-[calc(100vh-80px)] flex items-center justify-center px-4 py-12 bg-gradient-dark">
-      
-      {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl glow-purple pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl glow-blue pointer-events-none"></div>
-
-      <div className="w-full max-w-lg glass glow-purple p-8 rounded-3xl relative z-10">
-        
-        {/* Title */}
-        <div className="text-center mb-8">
-          <div className="inline-flex bg-gradient-premium p-3 rounded-2xl text-white mb-4 shadow-lg shadow-indigo-600/30">
-            <Terminal size={32} />
+  if (registrationSuccess || isVerificationPending) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-12">
+        <div className="glass-panel w-full max-w-md p-8 rounded-xl relative overflow-hidden text-center">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary-container to-transparent opacity-80 animate-pulse"></div>
+          
+          <div className="w-24 h-24 mb-6 mx-auto relative">
+            <img 
+              alt="SEAL Hackathon Logo" 
+              className="w-full h-full object-contain rounded-full logo-glow drop-shadow-[0_0_20px_rgba(0,240,255,0.6)]" 
+              src="https://lh3.googleusercontent.com/aida/ADBb0ujijblMHWmiBodnzGgcfB7u7EiN0US6CunNVACp9z1m9Bt40l554VgXUfaUBJrxb7qG2EYB-rrKMBuEOeOjZVfKDrr6Op31S1Wu2TxyC-jdYc4wPP8yMVL6TCay4qe54bHg_HSh18Isk5grPw84zb6qJwialtdkb-E-xP2Cy6t-TpnMnysiicR1ugcklLKsHo73UptBGwh7zFFCMlfybrHnmjrh514W01DyL2z0Cm9CRPNSHR3SIo1fdLIl"
+            />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
-            {isRegister ? 'Đăng ký tài khoản' : 'Đăng nhập hệ thống'}
+
+          <div className="chip font-mono text-xs text-primary-container mb-4 bg-[#0a141d]/50">
+            {isVerificationPending ? '[ACTIVATION_REQUIRED]' : '[SYSTEM_PENDING]'}
+          </div>
+
+          <h2 className="font-mono text-xl font-bold text-white mb-3 uppercase tracking-tight">
+            {isVerificationPending ? 'PENDING_ACTIVATION' : 'NODE_VERIFICATION'}
           </h2>
-          <p className="text-slate-400 text-sm">
-            SEAL Hackathon Management System
+          
+          <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">
+            {isVerificationPending ? (
+              <>
+                Tài khoản chưa được kích hoạt. Một email chứa đường dẫn kích hoạt đã được gửi tới địa chỉ <span className="text-primary-container font-mono">{email}</span>. Vui lòng kiểm tra hộp thư của bạn (và cả mục thư rác) để hoàn tất việc xác thực tài khoản.
+              </>
+            ) : (
+              <>
+                Đăng ký thành công! Một email chứa đường dẫn kích hoạt đã được gửi tới địa chỉ <span className="text-primary-container font-mono">{email}</span>. Vui lòng kiểm tra hộp thư của bạn (và cả mục thư rác) để hoàn tất việc xác thực tài khoản.
+              </>
+            )}
+          </p>
+
+          <button
+            onClick={() => {
+              setIsRegister(false);
+              setRegistrationSuccess(false);
+              setIsVerificationPending(false);
+            }}
+            className="btn-primary w-full py-2.5 font-mono text-xs font-bold uppercase tracking-widest active:scale-95 transition-all duration-300 cursor-pointer"
+          >
+            QUAY LẠI ĐĂNG NHẬP
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-12">
+      
+      <div className="glass-panel w-full max-w-md p-8 rounded-xl relative overflow-hidden z-10">
+        
+        {/* Top Rule */}
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary-container to-transparent opacity-80"></div>
+        <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary-container to-transparent opacity-30"></div>
+
+        {/* Header Section */}
+        <div className="text-center mb-6 flex flex-col items-center">
+          <div className="w-24 h-24 mb-4 relative">
+            <img 
+              alt="SEAL Hackathon Logo" 
+              className="w-full h-full object-contain rounded-full logo-glow drop-shadow-[0_0_20px_rgba(0,240,255,0.6)]" 
+              src="https://lh3.googleusercontent.com/aida/ADBb0ujijblMHWmiBodnzGgcfB7u7EiN0US6CunNVACp9z1m9Bt40l554VgXUfaUBJrxb7qG2EYB-rrKMBuEOeOjZVfKDrr6Op31S1Wu2TxyC-jdYc4wPP8yMVL6TCay4qe54bHg_HSh18Isk5grPw84zb6qJwialtdkb-E-xP2Cy6t-TpnMnysiicR1ugcklLKsHo73UptBGwh7zFFCMlfybrHnmjrh514W01DyL2z0Cm9CRPNSHR3SIo1fdLIl"
+            />
+          </div>
+          <div className="chip font-mono text-xs text-primary-container mb-3 bg-[#0a141d]/50">
+            [SYSTEM_READY]
+          </div>
+          <h1 className="font-mono text-xl font-bold text-on-surface mb-1 tracking-tight">
+            {isRegister ? 'Register' : 'Access Terminal'}
+          </h1>
+          <p className="text-on-surface-variant text-xs font-sans">
+            {isRegister ? 'Initialize your credentials to join the protocol.' : 'Identify yourself to initiate session.'}
           </p>
         </div>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-            <ShieldCheck size={18} className="text-rose-400 shrink-0" />
-            <span>{error}</span>
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs px-4 py-3 rounded-md mb-4 flex items-center gap-2 font-mono">
+            <ShieldCheck size={16} className="text-rose-400 shrink-0" />
+            <span>[ERROR] {error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Địa chỉ Email</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-3 text-slate-500" size={18} />
-              <input 
-                type="email" 
-                required 
-                placeholder="email@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Mật khẩu</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-3 text-slate-500" size={18} />
-              <input 
-                type="password" 
-                required 
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm"
-              />
-            </div>
-          </div>
-
           {isRegister && (
             <>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Họ và Tên</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-3 text-slate-500" size={18} />
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="Nguyễn Văn A"
-                    value={fullName}
-                    onChange={e => setFullName(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm"
-                  />
+                <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="fullName">Full Name</label>
+                <div className="relative cyber-input-wrapper rounded overflow-hidden">
+                  <div className="relative terminal-prompt">
+                    <input 
+                      type="text" 
+                      id="fullName"
+                      required 
+                      placeholder="Enter your legal name"
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
+                    />
+                    <div className="scanline"></div>
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Mã số Sinh viên</label>
-                  <div className="relative">
-                    <BookOpen className="absolute left-4 top-3 text-slate-500" size={16} />
-                    <input 
-                      type="text" 
-                      placeholder="SE180xxx"
-                      value={studentId}
-                      onChange={e => setStudentId(e.target.value)}
-                      className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm"
-                    />
+                  <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="studentId">University ID</label>
+                  <div className="relative cyber-input-wrapper rounded overflow-hidden">
+                    <div className="relative terminal-prompt">
+                      <input 
+                        type="text" 
+                        id="studentId"
+                        placeholder="e.g. SE180xxx"
+                        value={studentId}
+                        onChange={e => setStudentId(e.target.value)}
+                        className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
+                      />
+                      <div className="scanline"></div>
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Trường Đại học</label>
-                  <input 
-                    type="text" 
-                    placeholder="FPT University"
-                    value={university}
-                    onChange={e => setUniversity(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl text-sm"
-                  />
+                  <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="university">University</label>
+                  <div className="relative cyber-input-wrapper rounded overflow-hidden">
+                    <input 
+                      type="text" 
+                      id="university"
+                      placeholder="e.g. FPT University"
+                      value={university}
+                      onChange={e => setUniversity(e.target.value)}
+                      className="cyber-input relative z-10 w-full rounded py-2 px-3 font-mono text-xs focus:ring-0"
+                    />
+                    <div className="scanline"></div>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Tên tài khoản GitHub</label>
-                <div className="relative">
-                  <Github className="absolute left-4 top-3 text-slate-500" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder="username-github"
-                    value={githubUsername}
-                    onChange={e => setGithubUsername(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm"
-                  />
+                <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="githubUsername">GitHub Username</label>
+                <div className="relative cyber-input-wrapper rounded overflow-hidden">
+                  <div className="relative terminal-prompt">
+                    <input 
+                      type="text" 
+                      id="githubUsername"
+                      placeholder="Enter github username"
+                      value={githubUsername}
+                      onChange={e => setGithubUsername(e.target.value)}
+                      className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
+                    />
+                    <div className="scanline"></div>
+                  </div>
                 </div>
               </div>
             </>
           )}
 
+          <div>
+            <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="email">Access Key (Email)</label>
+            <div className="relative cyber-input-wrapper rounded overflow-hidden">
+              <div className="relative terminal-prompt">
+                <input 
+                  type="email" 
+                  id="email"
+                  required 
+                  placeholder="Enter email address"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
+                />
+                <div className="scanline"></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block font-mono text-xs text-primary-container opacity-80" htmlFor="password">Security Code (Password)</label>
+              {!isRegister && (
+                <a href="#" className="font-mono text-[10px] text-primary-container hover:underline hover:text-[#7df4ff] transition-colors">Forgot Credentials?</a>
+              )}
+            </div>
+            <div className="relative cyber-input-wrapper rounded overflow-hidden">
+              <div className="relative terminal-prompt">
+                <input 
+                  type="password" 
+                  id="password"
+                  required 
+                  placeholder="Enter authentication hash"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
+                />
+                <div className="scanline"></div>
+              </div>
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition-all duration-200 mt-6 flex items-center justify-center gap-2"
+            className="btn-primary w-full py-2.5 font-mono text-xs font-bold uppercase tracking-widest active:scale-95 transition-all duration-300 mt-4 cursor-pointer"
           >
-            {loading ? 'Đang xử lý...' : isRegister ? 'Đăng ký' : 'Đăng nhập'}
+            {loading ? 'Processing...' : isRegister ? 'Register' : 'Initiate Session'}
           </button>
         </form>
 
         <div className="relative my-6 text-center">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-800"></div>
+            <div className="w-full border-t border-outline-variant/30"></div>
           </div>
-          <span className="relative px-3 text-xs uppercase tracking-wider text-slate-500 bg-[#090d16] font-semibold">
-            Hoặc đăng nhập bằng
+          <span className="relative px-3 text-[10px] uppercase tracking-wider text-on-surface-variant/60 bg-[#0a141d] font-mono">
+            Or Authenticate Via
           </span>
         </div>
 
@@ -315,7 +411,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <button
             type="button"
             onClick={() => handleOAuthClick('google')}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/50 hover:bg-slate-900 text-sm font-semibold transition-all duration-200 cursor-pointer"
+            className="btn-secondary flex items-center justify-center gap-2 py-2 font-mono text-xs cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -329,21 +425,24 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <button
             type="button"
             onClick={() => handleOAuthClick('github')}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/50 hover:bg-slate-900 text-sm font-semibold transition-all duration-200 cursor-pointer"
+            className="btn-secondary flex items-center justify-center gap-2 py-2 font-mono text-xs cursor-pointer"
           >
             <Github size={16} />
             GitHub
           </button>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-          <p className="text-sm text-slate-400">
-            {isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}
+        <div className="mt-6 pt-4 border-t border-outline-variant/30 text-center">
+          <p className="text-xs text-on-surface-variant">
+            {isRegister ? 'Already cleared?' : 'No active clearance?'}
             <button
-              onClick={() => setIsRegister(!isRegister)}
-              className="text-indigo-400 hover:text-indigo-300 font-semibold ml-1.5 transition-colors duration-150"
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setError('');
+              }}
+              className="text-primary-container hover:text-primary-fixed underline font-mono text-xs ml-1.5 transition-colors duration-150 cursor-pointer"
             >
-              {isRegister ? 'Đăng nhập ngay' : 'Đăng ký tài khoản'}
+              {isRegister ? 'Initiate Session' : 'Request New Access'}
             </button>
           </p>
         </div>
@@ -368,15 +467,11 @@ interface OAuthModalProps {
 }
 
 function OAuthModal({ provider, onClose, onSubmit }: OAuthModalProps) {
-  const [activeTab, setActiveTab] = useState<'mock' | 'real'>('mock');
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [githubUsername, setGithubUsername] = useState('');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (provider === 'google' && activeTab === 'real') {
+    if (provider === 'google') {
       const initGoogle = () => {
         // @ts-ignore
         if (window.google) {
@@ -403,34 +498,20 @@ function OAuthModal({ provider, onClose, onSubmit }: OAuthModalProps) {
       const timer = setTimeout(initGoogle, 200);
       return () => clearTimeout(timer);
     }
-  }, [provider, activeTab]);
+  }, [provider]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeTab === 'mock') {
-      if (!email) {
-        setError('Vui lòng nhập Email.');
-        return;
-      }
-      onSubmit({
-        email,
-        fullName: fullName || email.split('@')[0],
-        githubUsername: provider === 'github' ? (githubUsername || email.split('@')[0]) : undefined,
-        token: '',
-        isMock: true
-      });
-    } else {
-      if (!token) {
-        setError(`Vui lòng nhập ${provider === 'google' ? 'Google ID Token' : 'GitHub Access Token'}.`);
-        return;
-      }
-      onSubmit({
-        email: '',
-        fullName: '',
-        token,
-        isMock: false
-      });
+    if (!token) {
+      setError(`Vui lòng nhập ${provider === 'google' ? 'Google ID Token' : 'GitHub Access Token'}.`);
+      return;
     }
+    onSubmit({
+      email: '',
+      fullName: '',
+      token,
+      isMock: false
+    });
   };
 
   return (
@@ -444,28 +525,6 @@ function OAuthModal({ provider, onClose, onSubmit }: OAuthModalProps) {
           )}
         </h3>
 
-        {/* Tab Selection */}
-        <div className="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
-          <button
-            type="button"
-            onClick={() => { setActiveTab('mock'); setError(''); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              activeTab === 'mock' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Mô phỏng (Mock)
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('real'); setError(''); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              activeTab === 'real' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Token thực tế (OAuth)
-          </button>
-        </div>
-
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs px-3 py-2 rounded-xl mb-4">
             {error}
@@ -473,100 +532,62 @@ function OAuthModal({ provider, onClose, onSubmit }: OAuthModalProps) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {activeTab === 'mock' ? (
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Địa chỉ Email</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="user@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Họ và Tên (Tùy chọn)</label>
-                <input
-                  type="text"
-                  placeholder="Nguyễn Văn A"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm"
-                />
-              </div>
-              {provider === 'github' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">GitHub Username (Tùy chọn)</label>
-                  <input
-                    type="text"
-                    placeholder="github-username"
-                    value={githubUsername}
-                    onChange={e => setGithubUsername(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl text-sm"
-                  />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="space-y-4">
-              {provider === 'google' && (
-                <div className="flex flex-col items-center justify-center p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-2">
-                  <span className="text-xs text-slate-400 mb-3 font-semibold">Bấm để đăng nhập bằng tài khoản Google thật:</span>
-                  <div id="google-signin-button" className="min-h-[40px] flex items-center justify-center"></div>
-                  <div className="relative my-4 w-full text-center">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-slate-800"></div>
-                    </div>
-                    <span className="relative px-2 text-[10px] uppercase tracking-wider text-slate-600 bg-[#0f172a] font-bold">
-                      Hoặc dán Token thủ công
-                    </span>
+          <div className="space-y-4">
+            {provider === 'google' && (
+              <div className="flex flex-col items-center justify-center p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-2">
+                <span className="text-xs text-slate-400 mb-3 font-semibold">Bấm để đăng nhập bằng tài khoản Google:</span>
+                <div id="google-signin-button" className="min-h-[40px] flex items-center justify-center"></div>
+                <div className="relative my-4 w-full text-center">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-800"></div>
                   </div>
+                  <span className="relative px-2 text-[10px] uppercase tracking-wider text-slate-600 bg-[#0f172a] font-bold">
+                    Hoặc dán Token thủ công
+                  </span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {provider === 'github' && (
-                <div className="flex flex-col items-center justify-center p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-2">
-                  <span className="text-xs text-slate-400 mb-3 font-semibold">Bấm để xác thực qua tài khoản GitHub thật của bạn:</span>
-                  <a
-                    href={`https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID || 'Ov23liz8uHIFRtgdwDwE'}&scope=read:user%20user:email`}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm font-semibold text-white transition-all cursor-pointer text-center"
-                  >
-                    <Github size={16} />
-                    Đăng nhập bằng GitHub
-                  </a>
-                  <div className="relative my-4 w-full text-center">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-slate-800"></div>
-                    </div>
-                    <span className="relative px-2 text-[10px] uppercase tracking-wider text-slate-600 bg-[#0f172a] font-bold">
-                      Hoặc dán Token thủ công
-                    </span>
+            {provider === 'github' && (
+              <div className="flex flex-col items-center justify-center p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-2">
+                <span className="text-xs text-slate-400 mb-3 font-semibold">Bấm để xác thực qua tài khoản GitHub:</span>
+                <a
+                  href={`https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID || 'Ov23liz8uHIFRtgdwDwE'}&scope=read:user%20user:email`}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm font-semibold text-white transition-all cursor-pointer text-center"
+                >
+                  <Github size={16} />
+                  Đăng nhập bằng GitHub
+                </a>
+                <div className="relative my-4 w-full text-center">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-800"></div>
                   </div>
+                  <span className="relative px-2 text-[10px] uppercase tracking-wider text-slate-600 bg-[#0f172a] font-bold">
+                    Hoặc dán Token thủ công
+                  </span>
                 </div>
-              )}
-              
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
-                  {provider === 'google' ? 'Google ID Token (credential)' : 'GitHub Access Token'}
-                </label>
-                <textarea
-                  required={provider !== 'google'}
-                  placeholder={provider === 'google' ? 'Dán Google ID Token tại đây...' : 'Dán GitHub Access Token tại đây...'}
-                  value={token}
-                  onChange={e => setToken(e.target.value)}
-                  rows={provider === 'google' ? 2 : 3}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm font-mono text-xs"
-                />
-                <p className="text-[10px] text-slate-500 mt-2 leading-normal">
-                  {provider === 'google' 
-                    ? 'Nhập trực tiếp ID Token nhận được từ Google SDK, hoặc sử dụng nút Đăng nhập chính thức ở trên.'
-                    : 'Access Token nhận được sau khi hoàn tất quy trình OAuth trao đổi code lấy token.'}
-                </p>
               </div>
+            )}
+            
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+                {provider === 'google' ? 'Google ID Token (credential)' : 'GitHub Access Token'}
+              </label>
+              <textarea
+                required={provider !== 'google'}
+                placeholder={provider === 'google' ? 'Dán Google ID Token tại đây...' : 'Dán GitHub Access Token tại đây...'}
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                rows={provider === 'google' ? 2 : 3}
+                className="w-full px-4 py-2.5 rounded-xl text-sm font-mono text-xs bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-indigo-500"
+              />
+              <p className="text-[10px] text-slate-500 mt-2 leading-normal">
+                {provider === 'google' 
+                  ? 'Nhập trực tiếp ID Token nhận được từ Google SDK, hoặc sử dụng nút Đăng nhập chính thức ở trên.'
+                  : 'Access Token nhận được sau khi hoàn tất quy trình OAuth trao đổi code lấy token.'}
+              </p>
             </div>
-          )}
+          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -588,3 +609,4 @@ function OAuthModal({ provider, onClose, onSubmit }: OAuthModalProps) {
     </div>
   );
 }
+

@@ -418,4 +418,114 @@ router.post("/:rubricId/criteria", authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/rubrics
+ * @desc    Get all active rubrics with their criteria
+ * @access  Private (Coordinator or Admin)
+ */
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const rubrics = await Rubric.find({ isActive: true })
+      .populate('eventId', 'name')
+      .populate('trackId', 'name')
+      .populate('roundId', 'name');
+    
+    // Fetch criteria for each rubric
+    const rubricsWithCriteria = await Promise.all(
+      rubrics.map(async (r) => {
+        const criteria = await Criterion.find({ rubricId: r._id }).sort({ order: 1 });
+        return {
+          ...r.toObject(),
+          criteria
+        };
+      })
+    );
+    
+    res.json(rubricsWithCriteria);
+  } catch (error) {
+    console.error('Fetch All Rubrics Error:', error.message);
+    res.status(500).json({ message: 'Server error retrieving rubrics.' });
+  }
+});
+
+/**
+ * @route   POST /api/rubrics/clone
+ * @desc    Clone an existing rubric to a new event round
+ * @access  Private (Coordinator or Admin)
+ */
+router.post('/clone', authenticateToken, async (req, res) => {
+  const { fromRubricId, eventId, trackId, roundId, name } = req.body;
+
+  if (!fromRubricId || !eventId || !trackId || !roundId || !name) {
+    return res.status(400).json({ message: 'From Rubric ID, Event ID, Track ID, Round ID, and New Rubric Name are required.' });
+  }
+
+  try {
+    // Auth Check
+    if (!req.user.isSystemAdmin) {
+      const coordinatorRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized. Coordinator role required.' });
+    }
+
+    // Check if rubric already exists for this target round
+    const existing = await Rubric.findOne({ roundId, isActive: true });
+    if (existing) {
+      return res.status(400).json({ message: 'An active rubric already exists for this round.' });
+    }
+
+    // Find source rubric
+    const sourceRubric = await Rubric.findById(fromRubricId);
+    if (!sourceRubric) {
+      return res.status(404).json({ message: 'Source rubric not found.' });
+    }
+
+    // Create new rubric
+    const newRubric = new Rubric({
+      eventId,
+      trackId,
+      roundId,
+      name,
+      description: sourceRubric.description,
+      totalWeight: sourceRubric.totalWeight,
+      maxCriterionScore: sourceRubric.maxCriterionScore,
+      createdBy: req.user._id
+    });
+
+    await newRubric.save();
+
+    // Find source criteria and clone them
+    const sourceCriteria = await Criterion.find({ rubricId: fromRubricId });
+    const newCriteria = sourceCriteria.map(c => new Criterion({
+      rubricId: newRubric._id,
+      code: c.code,
+      name: c.name,
+      description: c.description,
+      weight: c.weight,
+      maxScore: c.maxScore,
+      excellentDescription: c.excellentDescription,
+      goodDescription: c.goodDescription,
+      passedDescription: c.passedDescription,
+      failedDescription: c.failedDescription,
+      order: c.order
+    }));
+
+    await Criterion.insertMany(newCriteria);
+
+    res.status(201).json({
+      message: 'Rubric cloned successfully!',
+      rubric: newRubric,
+      criteria: newCriteria
+    });
+
+  } catch (error) {
+    console.error('Clone Rubric Error:', error.message);
+    res.status(500).json({ message: 'Server error cloning rubric.' });
+  }
+});
+
 module.exports = router;

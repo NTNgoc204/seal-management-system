@@ -13,6 +13,8 @@ const UserSchema = new Schema({
   isSystemAdmin: { type: Boolean, default: false },
   isApproved: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
+  emailVerificationToken: { type: String },
+  emailVerificationTokenExpiry: { type: Date },
   notificationPrefs: { type: Schema.Types.Mixed, default: {} }
 }, {
   timestamps: true
