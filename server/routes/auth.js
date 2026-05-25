@@ -617,4 +617,88 @@ router.get('/verify-email', async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/auth/test-email
+ * @desc    Diagnose SMTP connection and credentials on the live server
+ * @access  Public (For debugging)
+ */
+router.get('/test-email', async (req, res) => {
+  const nodemailer = require('nodemailer');
+  
+  const config = {
+    host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
+    port: parseInt(process.env.EMAIL_PORT || '587'),
+    secure: process.env.EMAIL_PORT === '465',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    debug: true,
+    logger: true
+  };
+
+  const logs = [];
+  const customLogger = {
+    info: (msg) => logs.push(`[INFO] ${msg}`),
+    warn: (msg) => logs.push(`[WARN] ${msg}`),
+    error: (msg) => logs.push(`[ERROR] ${msg}`)
+  };
+
+  const transporter = nodemailer.createTransport({
+    ...config,
+    logger: customLogger
+  });
+
+  try {
+    logs.push(`Attempting connection verification to ${config.host}:${config.port}...`);
+    await transporter.verify();
+    logs.push(`✅ SMTP connection verified successfully!`);
+
+    logs.push(`Sending diagnostic test email to ${config.auth.user}...`);
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"SEAL Hackathon Debug" <no-reply@domain.com>',
+      to: config.auth.user,
+      subject: `[SEAL Hackathon Debug] Real-time SMTP Diagnostics`,
+      text: `SMTP Diagnostics completed successfully at ${new Date().toISOString()}. Your credentials are valid!`
+    });
+    logs.push(`✅ Email sent successfully! MessageID: ${info.messageId}`);
+
+    res.json({
+      status: 'success',
+      message: 'SMTP is fully functional on this server!',
+      configUsed: {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        user: config.auth.user,
+        passMasked: config.auth.pass ? `${config.auth.pass.substring(0, 4)}***` : 'None'
+      },
+      diagnosticLogs: logs
+    });
+
+  } catch (error) {
+    logs.push(`❌ ERROR ENCOUNTERED: ${error.message}`);
+    res.status(500).json({
+      status: 'failed',
+      message: 'SMTP Diagnostics failed. See logs below.',
+      errorDetails: {
+        message: error.message,
+        code: error.code,
+        command: error.command,
+        response: error.response,
+        responseCode: error.responseCode,
+        stack: error.stack
+      },
+      configUsed: {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        user: config.auth.user,
+        passMasked: config.auth.pass ? `${config.auth.pass.substring(0, 4)}***` : 'None'
+      },
+      diagnosticLogs: logs
+    });
+  }
+});
+
 module.exports = router;
