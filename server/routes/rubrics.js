@@ -1,165 +1,309 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const Rubric = mongoose.model('Rubric');
-const Criterion = mongoose.model('Criterion');
-const EventRole = mongoose.model('EventRole');
-const { authenticateToken } = require('../middleware/authMiddleware');
+const Rubric = mongoose.model("Rubric");
+const Criterion = mongoose.model("Criterion");
+const Round = mongoose.model("Round");
+const EventRole = mongoose.model("EventRole");
+const { authenticateToken } = require("../middleware/authMiddleware");
+
+function toNumber(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+async function canManageRubric(req, eventId) {
+  if (req.user.isSystemAdmin) return true;
+
+  const role = await EventRole.findOne({
+    userId: req.user._id,
+    eventId,
+    role: "coordinator",
+    status: "active",
+  });
+
+  return !!role;
+}
+
+async function loadRubricOr404(rubricId, res) {
+  const rubric = await Rubric.findById(rubricId);
+  if (!rubric) {
+    res.status(404).json({ message: "Rubric not found." });
+    return null;
+  }
+  return rubric;
+}
+
+async function getCriteriaSum(rubricId) {
+  const criteria = await Criterion.find({ rubricId });
+  return criteria.reduce(
+    (sum, criterion) => sum + Number(criterion.weight || 0),
+    0,
+  );
+}
 
 /**
- * @route   POST /api/rubrics
- * @desc    Create a rubric for an event round
- * @access  Private (Coordinator or Admin)
+ * GET /api/rubrics
+ * Query: eventId, trackId, roundId, isActive
  */
-router.post('/', authenticateToken, async (req, res) => {
-  const { eventId, trackId, roundId, name, description, totalWeight, maxCriterionScore } = req.body;
+router.get("/", authenticateToken, async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.eventId) filter.eventId = req.query.eventId;
+    if (req.query.trackId) filter.trackId = req.query.trackId;
+    if (req.query.roundId) filter.roundId = req.query.roundId;
+    if (req.query.isActive !== undefined)
+      filter.isActive = req.query.isActive === "true";
+
+    const rubrics = await Rubric.find(filter).sort({ createdAt: -1 });
+    res.json(rubrics);
+  } catch (error) {
+    console.error("List Rubrics Error:", error.message);
+    res.status(500).json({ message: "Server error retrieving rubrics." });
+  }
+});
+
+/**
+ * POST /api/rubrics
+ * Tạo rubric cho một round
+ */
+router.post("/", authenticateToken, async (req, res) => {
+  const {
+    eventId,
+    trackId,
+    roundId,
+    name,
+    description,
+    totalWeight,
+    maxCriterionScore,
+  } = req.body;
 
   if (!eventId || !trackId || !roundId || !name) {
-    return res.status(400).json({ message: 'Event ID, Track ID, Round ID, and Rubric name are required.' });
+    return res
+      .status(400)
+      .json({
+        message: "Event ID, Track ID, Round ID, and Rubric name are required.",
+      });
   }
 
   try {
-    // Auth Check
-    if (!req.user.isSystemAdmin) {
-      const coordinatorRole = await EventRole.findOne({
-        userId: req.user._id,
-        eventId,
-        role: 'coordinator',
-        status: 'active'
-      });
-      if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized. Coordinator role required.' });
+    const round = await Round.findById(roundId);
+    if (!round) return res.status(404).json({ message: "Round not found." });
+
+    if (
+      round.eventId.toString() !== eventId.toString() ||
+      round.trackId.toString() !== trackId.toString()
+    ) {
+      return res
+        .status(400)
+        .json({
+          message: "Round does not belong to the provided event/track.",
+        });
     }
 
-    // Check if rubric already exists for this round
-    const existing = await Rubric.findOne({ roundId, isActive: true });
-    if (existing) {
-      return res.status(400).json({ message: 'An active rubric already exists for this round.' });
+    if (!(await canManageRubric(req, eventId))) {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized. Coordinator role required." });
+    }
+
+    const existingActive = await Rubric.findOne({ roundId, isActive: true });
+    if (existingActive) {
+      return res
+        .status(400)
+        .json({ message: "An active rubric already exists for this round." });
+    }
+
+    const rubricTotalWeight = toNumber(totalWeight, 100);
+    if (rubricTotalWeight > 100) {
+      return res
+        .status(400)
+        .json({ message: "Rubric totalWeight cannot exceed 100." });
     }
 
     const rubric = new Rubric({
       eventId,
       trackId,
       roundId,
-      name,
+      name: String(name).trim(),
       description,
-      totalWeight: totalWeight || 100,
-      maxCriterionScore: maxCriterionScore || 10.0,
-      createdBy: req.user._id
+      totalWeight: rubricTotalWeight,
+      maxCriterionScore: toNumber(maxCriterionScore, 10),
+      createdBy: req.user._id,
     });
 
     await rubric.save();
     res.status(201).json(rubric);
-
   } catch (error) {
-    console.error('Create Rubric Error:', error.message);
-    res.status(500).json({ message: 'Server error creating rubric.' });
+    console.error("Create Rubric Error:", error.message);
+    res.status(500).json({ message: "Server error creating rubric." });
   }
 });
 
 /**
- * @route   GET /api/rubrics/round/:roundId
- * @desc    Get active rubric for a round including criteria
- * @access  Private
+ * GET /api/rubrics/round/:roundId
+ * Lấy rubric active của round kèm danh sách criteria
  */
-router.get('/round/:roundId', authenticateToken, async (req, res) => {
+router.get("/round/:roundId", authenticateToken, async (req, res) => {
   try {
-    const rubric = await Rubric.findOne({ roundId: req.params.roundId, isActive: true });
+    const rubric = await Rubric.findOne({
+      roundId: req.params.roundId,
+      isActive: true,
+    });
     if (!rubric) {
-      return res.status(404).json({ message: 'No active rubric found for this round.' });
+      return res
+        .status(404)
+        .json({ message: "No active rubric found for this round." });
     }
 
-    const criteria = await Criterion.find({ rubricId: rubric._id }).sort({ order: 1 });
-
-    res.json({
-      rubric,
-      criteria
+    const criteria = await Criterion.find({ rubricId: rubric._id }).sort({
+      order: 1,
+      createdAt: 1,
     });
-
+    res.json({ rubric, criteria });
   } catch (error) {
-    console.error('Fetch Rubric Error:', error.message);
-    res.status(500).json({ message: 'Server error retrieving rubric.' });
+    console.error("Fetch Rubric Error:", error.message);
+    res.status(500).json({ message: "Server error retrieving rubric." });
   }
 });
 
 /**
- * @route   POST /api/rubrics/:rubricId/criteria
- * @desc    Add a criterion to a rubric
- * @access  Private (Coordinator or Admin)
+ * GET /api/rubrics/:rubricId
+ * Lấy chi tiết rubric theo ID
  */
-router.post('/:rubricId/criteria', authenticateToken, async (req, res) => {
-  const { rubricId } = req.params;
-  const { code, name, description, weight, maxScore, excellentDescription, goodDescription, passedDescription, failedDescription, order } = req.body;
-
-  if (!code || !name || weight === undefined) {
-    return res.status(400).json({ message: 'Criterion code, name, and weight are required.' });
-  }
-
-  try {
-    const rubric = await Rubric.findById(rubricId);
-    if (!rubric) return res.status(404).json({ message: 'Rubric not found.' });
-    if (rubric.isLocked) {
-      return res.status(400).json({ message: 'Rubric is locked. Criteria cannot be modified.' });
-    }
-
-    // Auth check
-    if (!req.user.isSystemAdmin) {
-      const isCoord = await EventRole.findOne({ userId: req.user._id, eventId: rubric.eventId, role: 'coordinator' });
-      if (!isCoord) return res.status(403).json({ message: 'Unauthorized.' });
-    }
-
-    // Check duplicate code
-    const existing = await Criterion.findOne({ rubricId, code: code.toUpperCase() });
-    if (existing) {
-      return res.status(400).json({ message: 'A criterion with this code already exists in this rubric.' });
-    }
-
-    const criterion = new Criterion({
-      rubricId,
-      code: code.toUpperCase(),
-      name,
-      description,
-      weight: parseFloat(weight),
-      maxScore: maxScore ? parseFloat(maxScore) : 10.0,
-      excellentDescription,
-      goodDescription,
-      passedDescription,
-      failedDescription,
-      order: order !== undefined ? parseInt(order) : undefined
-    });
-
-    await criterion.save();
-    res.status(201).json(criterion);
-
-  } catch (error) {
-    console.error('Add Criterion Error:', error.message);
-    res.status(500).json({ message: 'Server error adding criterion.' });
-  }
-});
-
-/**
- * @route   POST /api/rubrics/:rubricId/lock
- * @desc    Lock rubric to enable grading
- * @access  Private (Coordinator or Admin)
- */
-router.post('/:rubricId/lock', authenticateToken, async (req, res) => {
+router.get("/:rubricId", authenticateToken, async (req, res) => {
   try {
     const rubric = await Rubric.findById(req.params.rubricId);
-    if (!rubric) return res.status(404).json({ message: 'Rubric not found.' });
-
-    // Auth check
-    if (!req.user.isSystemAdmin) {
-      const isCoord = await EventRole.findOne({ userId: req.user._id, eventId: rubric.eventId, role: 'coordinator' });
-      if (!isCoord) return res.status(403).json({ message: 'Unauthorized.' });
+    if (!rubric) {
+      return res.status(404).json({ message: "Rubric not found." });
     }
 
-    // Validate sum of criteria weights matches totalWeight
+    const criteria = await Criterion.find({ rubricId: rubric._id }).sort({
+      order: 1,
+      createdAt: 1,
+    });
+    res.json({ rubric, criteria });
+  } catch (error) {
+    console.error("Fetch Rubric By ID Error:", error.message);
+    res.status(500).json({ message: "Server error retrieving rubric." });
+  }
+});
+
+/**
+ * PUT /api/rubrics/:rubricId
+ * Sửa rubric
+ */
+router.put("/:rubricId", authenticateToken, async (req, res) => {
+  try {
+    const rubric = await loadRubricOr404(req.params.rubricId, res);
+    if (!rubric) return;
+
+    if (!(await canManageRubric(req, rubric.eventId))) {
+      return res.status(403).json({ message: "Unauthorized." });
+    }
+
+    if (rubric.isLocked) {
+      return res
+        .status(400)
+        .json({ message: "Rubric is locked. It cannot be edited." });
+    }
+
+    const { name, description, totalWeight, maxCriterionScore, isActive } =
+      req.body;
+
+    if (name !== undefined) rubric.name = String(name).trim();
+    if (description !== undefined) rubric.description = description;
+
+    if (totalWeight !== undefined) {
+      const parsedTotalWeight = toNumber(totalWeight, rubric.totalWeight);
+      if (parsedTotalWeight > 100) {
+        return res
+          .status(400)
+          .json({ message: "Rubric totalWeight cannot exceed 100." });
+      }
+
+      const criteriaSum = await getCriteriaSum(rubric._id);
+      if (criteriaSum > parsedTotalWeight) {
+        return res.status(400).json({
+          message: `Cannot reduce rubric totalWeight below current criteria sum (${criteriaSum}).`,
+        });
+      }
+
+      rubric.totalWeight = parsedTotalWeight;
+    }
+
+    if (maxCriterionScore !== undefined) {
+      rubric.maxCriterionScore = toNumber(
+        maxCriterionScore,
+        rubric.maxCriterionScore,
+      );
+    }
+
+    if (isActive !== undefined) {
+      rubric.isActive = !!isActive;
+    }
+
+    await rubric.save();
+    res.json(rubric);
+  } catch (error) {
+    console.error("Update Rubric Error:", error.message);
+    res.status(500).json({ message: "Server error updating rubric." });
+  }
+});
+
+/**
+ * DELETE /api/rubrics/:rubricId
+ * Xóa mềm rubric
+ */
+router.delete("/:rubricId", authenticateToken, async (req, res) => {
+  try {
+    const rubric = await loadRubricOr404(req.params.rubricId, res);
+    if (!rubric) return;
+
+    if (!(await canManageRubric(req, rubric.eventId))) {
+      return res.status(403).json({ message: "Unauthorized." });
+    }
+
+    if (rubric.isLocked) {
+      return res
+        .status(400)
+        .json({ message: "Rubric is locked and cannot be deleted." });
+    }
+
+    rubric.isActive = false;
+    await rubric.save();
+
+    res.json({ message: "Rubric deactivated successfully." });
+  } catch (error) {
+    console.error("Delete Rubric Error:", error.message);
+    res.status(500).json({ message: "Server error deleting rubric." });
+  }
+});
+
+/**
+ * POST /api/rubrics/:rubricId/lock
+ * Khóa rubric sau khi hoàn tất criteria
+ */
+router.post("/:rubricId/lock", authenticateToken, async (req, res) => {
+  try {
+    const rubric = await loadRubricOr404(req.params.rubricId, res);
+    if (!rubric) return;
+
+    if (!(await canManageRubric(req, rubric.eventId))) {
+      return res.status(403).json({ message: "Unauthorized." });
+    }
+
     const criteria = await Criterion.find({ rubricId: rubric._id });
-    const weightSum = criteria.reduce((sum, c) => sum + c.weight, 0);
+    const weightSum = criteria.reduce(
+      (sum, criterion) => sum + Number(criterion.weight || 0),
+      0,
+    );
 
     if (Math.abs(weightSum - rubric.totalWeight) > 0.01) {
-      return res.status(400).json({ 
-        message: `Cannot lock rubric. The sum of criteria weights (${weightSum}%) must match the total rubric weight (${rubric.totalWeight}%).` 
+      return res.status(400).json({
+        message: `Cannot lock rubric. The sum of criteria weights (${weightSum}) must match the rubric totalWeight (${rubric.totalWeight}).`,
       });
     }
 
@@ -168,11 +312,109 @@ router.post('/:rubricId/lock', authenticateToken, async (req, res) => {
     rubric.lockedAt = new Date();
     await rubric.save();
 
-    res.json({ message: 'Rubric locked and ready for grading.', rubric });
-
+    res.json({ message: "Rubric locked and ready for grading.", rubric });
   } catch (error) {
-    console.error('Lock Rubric Error:', error.message);
-    res.status(500).json({ message: 'Server error locking rubric.' });
+    console.error("Lock Rubric Error:", error.message);
+    res.status(500).json({ message: "Server error locking rubric." });
+  }
+});
+
+/**
+ * POST /api/rubrics/:rubricId/criteria
+ * Thêm hoặc liên kết criterion mới trực tiếp qua rubric (Legacy URL support)
+ */
+router.post("/:rubricId/criteria", authenticateToken, async (req, res) => {
+  const {
+    code,
+    name,
+    description,
+    weight,
+    maxScore,
+    excellentDescription,
+    goodDescription,
+    passedDescription,
+    failedDescription,
+    order,
+    gradingLevels,
+  } = req.body;
+
+  if (!code || !name || weight === undefined) {
+    return res
+      .status(400)
+      .json({ message: "Criterion code, name, and weight are required." });
+  }
+
+  try {
+    const rubric = await loadRubricOr404(req.params.rubricId, res);
+    if (!rubric) return;
+
+    if (rubric.isLocked) {
+      return res
+        .status(400)
+        .json({ message: "Rubric is locked. Criteria cannot be modified." });
+    }
+
+    if (!(await canManageRubric(req, rubric.eventId))) {
+      return res.status(403).json({ message: "Unauthorized." });
+    }
+
+    const duplicate = await Criterion.findOne({
+      rubricId: rubric._id,
+      code: String(code).trim().toUpperCase(),
+    });
+
+    if (duplicate) {
+      return res
+        .status(400)
+        .json({
+          message: "A criterion with this code already exists in this rubric.",
+        });
+    }
+
+    const parsedWeight = Number(weight);
+    if (Number.isNaN(parsedWeight)) {
+      return res
+        .status(400)
+        .json({ message: "Criterion weight must be a number." });
+    }
+
+    const criteriaSum = await getCriteriaSum(rubric._id);
+    if (criteriaSum + parsedWeight > rubric.totalWeight) {
+      return res.status(400).json({
+        message: `Cannot add criterion. Current weight sum (${criteriaSum}) plus new weight (${parsedWeight}) exceeds rubric totalWeight (${rubric.totalWeight}).`,
+      });
+    }
+
+    let levels = [];
+    if (Array.isArray(gradingLevels)) {
+      levels = gradingLevels.map((lvl) => ({
+        label: String(lvl.label || "").trim(),
+        minScore: Number(lvl.minScore),
+        maxScore: Number(lvl.maxScore),
+        description: String(lvl.description || "").trim(),
+      }));
+    }
+
+    const criterion = new Criterion({
+      rubricId: rubric._id,
+      code: String(code).trim().toUpperCase(),
+      name: String(name).trim(),
+      description,
+      weight: parsedWeight,
+      maxScore: maxScore !== undefined ? Number(maxScore) : 10,
+      excellentDescription,
+      goodDescription,
+      passedDescription,
+      failedDescription,
+      order: order !== undefined ? parseInt(order, 10) : undefined,
+      gradingLevels: levels,
+    });
+
+    await criterion.save();
+    res.status(201).json(criterion);
+  } catch (error) {
+    console.error("Create Criterion Legacy Error:", error.message);
+    res.status(500).json({ message: "Server error creating criterion." });
   }
 });
 

@@ -1,56 +1,65 @@
-require('dotenv').config();
-const createError = require('http-errors');
-const express = require('express');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const logger = require('morgan');
-const cors = require('cors');
-const mongoose = require('mongoose');
+require("dotenv").config();
+const createError = require("http-errors");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
+const cors = require("cors");
+const mongoose = require("mongoose");
 
 // Import all models to register their schemas in Mongoose
-require('./models/User');
-require('./models/Event');
-require('./models/Track');
-require('./models/Round');
-require('./models/EventRole');
-require('./models/Rubric');
-require('./models/Criterion');
-require('./models/Team');
-require('./models/TeamMember');
-require('./models/GithubRepository');
-require('./models/RepositorySnapshot');
-require('./models/Commit');
-require('./models/CommitFile');
-require('./models/AiAnalysis');
-require('./models/Score');
-require('./models/ScoreDetail');
-require('./models/Ranking');
-require('./models/Prize');
-require('./models/Notification');
-require('./models/AuditLog');
-
+require("./models/User");
+require("./models/Event");
+require("./models/Track");
+require("./models/Round");
+require("./models/EventRole");
+require("./models/Rubric");
+require("./models/Criterion");
+require("./models/Team");
+require("./models/TeamMember");
+require("./models/GithubRepository");
+require("./models/RepositorySnapshot");
+require("./models/Commit");
+require("./models/CommitFile");
+require("./models/AiAnalysis");
+require("./models/Score");
+require("./models/ScoreDetail");
+require("./models/Ranking");
+require("./models/Prize");
+require("./models/Notification");
+require("./models/AuditLog");
+require("./models/GradingLevel");
 const app = express();
 
 // Connect to MongoDB
-const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/seal-hackathon';
-mongoose.connect(mongoUri).then(() => {
-  console.log('Connected to MongoDB successfully at:', mongoUri.split('@').pop());
-}).catch((err) => {
-  console.error('Failed to connect to MongoDB:', err.message);
-});
+const mongoUri =
+  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/seal-hackathon";
+mongoose
+  .connect(mongoUri)
+  .then(() => {
+    console.log(
+      "Connected to MongoDB successfully at:",
+      mongoUri.split("@").pop(),
+    );
+  })
+  .catch((err) => {
+    console.error("Failed to connect to MongoDB:", err.message);
+  });
 
 // Configure CORS
-app.use(cors({
-  origin: '*', // For development, allow all. In production, restrict as needed.
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin: "*", // For development, allow all. In production, restrict as needed.
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
-app.use(logger('dev'));
+app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Routers
 const indexRouter = require('./routes/index');
@@ -58,6 +67,7 @@ const authRouter = require('./routes/auth');
 const eventsRouter = require('./routes/events');
 const teamsRouter = require('./routes/teams');
 const rubricsRouter = require('./routes/rubrics');
+const criteriaRouter = require('./routes/criteria');
 const gradesRouter = require('./routes/grades');
 const analyticsRouter = require('./routes/analytics');
 const notificationsRouter = require('./routes/notifications');
@@ -69,6 +79,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/teams', teamsRouter);
 app.use('/api/rubrics', rubricsRouter);
+app.use('/api/criteria', criteriaRouter);
 app.use('/api/grades', gradesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/notifications', notificationsRouter);
@@ -84,14 +95,14 @@ app.use(function (req, res, next) {
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+  res.locals.error = req.app.get("env") === "development" ? err : {};
 
-  console.error('Express Error Handler:', err);
+  console.error("Express Error Handler:", err);
 
   res.status(err.status || 500);
   res.json({
     message: err.message,
-    error: req.app.get('env') === 'development' ? err : {}
+    error: req.app.get("env") === "development" ? err : {},
   });
 });
 
