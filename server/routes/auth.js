@@ -639,9 +639,10 @@ router.get('/test-email', async (req, res) => {
 
   const logs = [];
   const customLogger = {
-    info: (msg) => logs.push(`[INFO] ${msg}`),
-    warn: (msg) => logs.push(`[WARN] ${msg}`),
-    error: (msg) => logs.push(`[ERROR] ${msg}`)
+    debug: (entry, message) => logs.push(`[DEBUG] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`),
+    info: (entry, message) => logs.push(`[INFO] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`),
+    warn: (entry, message) => logs.push(`[WARN] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`),
+    error: (entry, message) => logs.push(`[ERROR] ${typeof entry === 'object' ? JSON.stringify(entry) : entry} ${message || ''}`)
   };
 
   const transporter = nodemailer.createTransport({
