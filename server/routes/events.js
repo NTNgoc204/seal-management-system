@@ -14,7 +14,6 @@ const GithubRepository = mongoose.model('GithubRepository');
 const emailService = require('../services/emailService');
 const githubService = require('../services/githubService');
 const { authenticateToken, requireSystemAdmin, requireEventRole } = require('../middleware/authMiddleware');
-const githubService = require('../services/githubService');
 
 /**
  * @route   GET /api/events
