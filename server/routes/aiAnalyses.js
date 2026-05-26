@@ -19,6 +19,8 @@ router.get('/team/:teamId', authenticateToken, async (req, res) => {
   try {
     const analyses = await AiAnalysis.find({ teamId: req.params.teamId })
       .populate('commitId', 'message commitSha committedAt authorGithubUsername authorName')
+      .populate('teamId', 'name')
+      .populate('repositoryId', 'repoName repoUrl')
       .sort({ createdAt: -1 });
       
     res.json(analyses);
