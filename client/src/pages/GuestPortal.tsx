@@ -76,18 +76,18 @@ export default function GuestPortal({ user }: GuestPortalProps) {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
             </span>
             <span className="text-xs text-cyan-400 tracking-widest uppercase">
-              [SYSTEM_STATUS: ONLINE]
+              [TRẠNG_THÁI: HOẠT_ĐỘNG]
             </span>
           </div>
 
           <h1 className="text-3xl md:text-5xl text-white font-extrabold tracking-tight">
-            Welcome back, <span className="text-cyan-400 text-cyan-glow font-mono-tech">{displayName}</span>.
+            Chào mừng trở lại, <span className="text-cyan-400 text-cyan-glow font-mono-tech">{displayName}</span>.
           </h1>
 
           <p className="text-slate-400 text-sm sm:text-base leading-relaxed max-w-2xl">
             {hasTeam
-              ? `Your terminal is active. You are currently enrolled in team "${teamName}". Access your team dashboard to view project tasks, sync commits, and check AI feedback.`
-              : "Your terminal is active. The Global Tech Hackathon awaits your input. Are you ready to initialize your mission parameters and join a squad?"}
+              ? `Hệ thống của bạn đang hoạt động. Bạn hiện đã tham gia đội thi "${teamName}". Hãy truy cập khu vực quản lý của đội thi để xem nhiệm vụ dự án, đồng bộ commits và kiểm tra đánh giá từ AI.`
+              : "Hệ thống của bạn đang hoạt động. Cuộc thi SEAL Hackathon đang chờ bạn nhập thông tin. Bạn đã sẵn sàng khởi tạo các tham số nhiệm vụ và gia nhập một đội chưa?"}
           </p>
 
           <div className="pt-2">
@@ -97,7 +97,7 @@ export default function GuestPortal({ user }: GuestPortalProps) {
                 className="btn-primary font-bold px-8 py-3 uppercase tracking-wider flex items-center gap-2"
               >
                 <Terminal size={18} />
-                <span>Access Team Area</span>
+                <span>Vào Khu vực Đội thi</span>
               </button>
             ) : (
               <button
@@ -105,7 +105,7 @@ export default function GuestPortal({ user }: GuestPortalProps) {
                 className="btn-primary font-bold px-8 py-3 uppercase tracking-wider flex items-center gap-2"
               >
                 <Users size={18} />
-                <span>Complete Enrollment</span>
+                <span>Hoàn tất đăng ký đội</span>
               </button>
             )}
           </div>
@@ -119,7 +119,7 @@ export default function GuestPortal({ user }: GuestPortalProps) {
           />
           <div className="absolute inset-0 border border-cyan-500/20 pointer-events-none rounded-xl"></div>
           <div className="absolute top-2 left-2 text-[10px] text-cyan-400/50">
-            SECURE_CONNECTION_STABLE
+            KẾT_NỐI_BẢO_MẬT_ỔN_ĐỊNH
           </div>
         </div>
       </section>
@@ -132,35 +132,35 @@ export default function GuestPortal({ user }: GuestPortalProps) {
             <div className="border-b border-slate-800 pb-3 mb-6 flex justify-between items-center">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Shield size={18} className="text-cyan-400" />
-                <span>Event Intelligence</span>
+                <span>Thông tin cuộc thi</span>
               </h2>
               <span className="text-[10px] text-slate-400 border border-slate-800 px-2 py-1 rounded bg-slate-900/50">
-                [OVERVIEW]
+                [TỔNG_QUAN]
               </span>
             </div>
 
             <div className="space-y-6">
               <div>
                 <h3 className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-2">
-                  Primary Objective
+                  Mục tiêu chính
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Engineer novel solutions to bypass designated security protocols in a simulated enterprise environment. Teams must document vulnerabilities and propose robust countermeasures.
+                  Phát triển các giải pháp sáng tạo để giải quyết bài toán thực tế và xây dựng hệ thống phần mềm chất lượng. Các đội thi cần tối ưu mã nguồn, liên kết repository và tối ưu hóa hệ thống dưới sự hỗ trợ của AI.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="border border-slate-800 p-3 bg-slate-900/30 rounded-xl">
-                  <div className="text-[9px] text-slate-500 mb-1">DURATION</div>
-                  <div className="text-sm font-bold text-white">48 HOURS</div>
+                  <div className="text-[9px] text-slate-500 mb-1">THỜI GIAN</div>
+                  <div className="text-sm font-bold text-white">48 GIỜ</div>
                 </div>
                 <div className="border border-slate-800 p-3 bg-slate-900/30 rounded-xl">
-                  <div className="text-[9px] text-slate-500 mb-1">TEAM_SIZE</div>
+                  <div className="text-[9px] text-slate-500 mb-1">SỐ THÀNH VIÊN</div>
                   <div className="text-sm font-bold text-white">2-4 OPERATORS</div>
                 </div>
                 <div className="border border-slate-800 p-3 bg-slate-900/30 rounded-xl col-span-2 flex justify-between items-center">
                   <div>
-                    <div className="text-[9px] text-slate-500 mb-1">BOUNTY_POOL</div>
+                    <div className="text-[9px] text-slate-500 mb-1">QUỸ GIẢI THƯỞNG</div>
                     <div className="text-sm font-bold text-cyan-400">$50,000 USD</div>
                   </div>
                   <DollarSign size={20} className="text-cyan-400/40" />
@@ -176,10 +176,10 @@ export default function GuestPortal({ user }: GuestPortalProps) {
             <div className="border-b border-slate-800 pb-3 mb-6 flex justify-between items-center">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Compass size={18} className="text-cyan-400" />
-                <span>Mission Roadmap</span>
+                <span>Lộ trình cuộc thi</span>
               </h2>
               <span className="text-[10px] text-slate-400 border border-slate-800 px-2 py-1 rounded bg-slate-900/50">
-                [TIMELINE]
+                [LỘ_TRÌNH]
               </span>
             </div>
 
@@ -189,12 +189,12 @@ export default function GuestPortal({ user }: GuestPortalProps) {
                 <div className="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-slate-950 border border-cyan-500"></div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1">
                   <h3 className="text-xs text-white font-bold uppercase tracking-wider">
-                    Phase 01: Team Formation & Ideation
+                    Giai đoạn 1: Thành lập đội & Lên ý tưởng
                   </h3>
-                  <span className="text-[9px] text-slate-500">T-MINUS 2 DAYS</span>
+                  <span className="text-[9px] text-slate-500">TRƯỚC 2 NGÀY</span>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  Connect with other registered operators, lock in your squad, and draft your initial attack vectors.
+                  Kết nối với các thí sinh khác, thành lập nhóm và phác thảo các ý tưởng dự án ban đầu.
                 </p>
               </div>
 
@@ -206,14 +206,14 @@ export default function GuestPortal({ user }: GuestPortalProps) {
                 </span>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1">
                   <h3 className="text-xs text-cyan-400 font-bold uppercase tracking-wider">
-                    Phase 02: Mainframe Breach (Coding)
+                    Giai đoạn 2: Phát triển sản phẩm (Coding)
                   </h3>
                   <span className="text-[9px] text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded bg-cyan-950/20">
-                    CURRENT
+                    ĐANG DIỄN RA
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Access granted to the sandbox. Execute your code, test vulnerabilities, and compile your final payload.
+                  Truy cập vào môi trường lập trình. Viết code, đồng bộ commit và chuẩn bị phiên bản sản phẩm cuối cùng.
                 </p>
               </div>
 
@@ -222,12 +222,12 @@ export default function GuestPortal({ user }: GuestPortalProps) {
                 <div className="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-700"></div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1">
                   <h3 className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    Phase 03: Debrief & Pitching
+                    Giai đoạn 3: Báo cáo & Thuyết trình
                   </h3>
-                  <span className="text-[9px] text-slate-600">LOCKED</span>
+                  <span className="text-[9px] text-slate-600">CHƯA MỞ</span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Present your methodology, findings, and proposed patches to the security council.
+                  Thuyết trình về phương pháp, tính năng sản phẩm và giải pháp của đội trước ban giám khảo.
                 </p>
               </div>
             </div>
@@ -240,35 +240,35 @@ export default function GuestPortal({ user }: GuestPortalProps) {
         <div className="border-b border-slate-800 pb-3 mb-6">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Scale size={18} className="text-cyan-400" />
-            <span>Mission Protocols</span>
+            <span>Quy định cuộc thi</span>
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
           <div className="p-4 border border-slate-850 hover:border-cyan-500/40 transition-colors bg-slate-900/20 rounded-xl">
             <Cpu size={24} className="text-cyan-400 mb-3" />
             <h3 className="text-xs text-white font-bold uppercase tracking-wider mb-2">
-              Original Code Only
+              Mã nguồn tự viết
             </h3>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              All primary exploits and scripts must be written during the event window. Pre-existing frameworks are allowed if open-source.
+              Tất cả các dòng code chính và sản phẩm phải được viết trong thời gian diễn ra cuộc thi. Các thư viện và framework có sẵn được phép sử dụng nếu là mã nguồn mở.
             </p>
           </div>
           <div className="p-4 border border-slate-850 hover:border-cyan-500/40 transition-colors bg-slate-900/20 rounded-xl">
             <Users size={24} className="text-cyan-400 mb-3" />
             <h3 className="text-xs text-white font-bold uppercase tracking-wider mb-2">
-              Squad Limits
+              Giới hạn đội thi
             </h3>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Teams must consist of at least 2 but no more than 4 operators. Solo runs are not permitted for this mission tier.
+              Mỗi đội phải có từ 2 đến 4 thành viên. Không cho phép tham gia cá nhân hoặc đội thi có số lượng vượt mức quy định.
             </p>
           </div>
           <div className="p-4 border border-slate-850 hover:border-cyan-500/40 transition-colors bg-slate-900/20 rounded-xl">
             <Shield size={24} className="text-cyan-400 mb-3" />
             <h3 className="text-xs text-white font-bold uppercase tracking-wider mb-2">
-              Ethical Boundaries
+              Ranh giới Đạo đức
             </h3>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Attacks against infrastructure outside the designated sandbox will result in immediate disqualification and system lockout.
+              Bất kỳ hành vi gian lận hoặc tấn công phá hoại hạ tầng bên ngoài phạm vi quy định sẽ dẫn đến việc truất quyền thi đấu ngay lập tức.
             </p>
           </div>
         </div>
@@ -281,7 +281,7 @@ export default function GuestPortal({ user }: GuestPortalProps) {
             onClick={() => navigate("/team-area")}
             className="btn-primary font-bold text-sm px-12 py-4 uppercase tracking-widest flex items-center gap-2 group"
           >
-            <span>Proceed to Team Area</span>
+            <span>Tiếp tục vào Khu vực Đội thi</span>
             <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </button>
         ) : (
@@ -289,7 +289,7 @@ export default function GuestPortal({ user }: GuestPortalProps) {
             onClick={() => navigate("/register-team")}
             className="btn-primary font-bold text-sm px-12 py-4 uppercase tracking-widest flex items-center gap-2 group"
           >
-            <span>Apply for Team Assignment</span>
+            <span>Đăng ký thành lập đội thi</span>
             <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </button>
         )}
