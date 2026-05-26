@@ -172,8 +172,8 @@ async function analyzeCommit(commit, files) {
       inventory_exhaustive: { llm_models_and_apis: [], frameworks_and_runtimes: [], vector_databases: [], agent_orchestration: [], third_party_integrations: [] },
       agent_intelligence: { detected_skills: [], tool_definitions: [], reasoning_pattern: "None", has_agent_config_files: false },
       rag_maturity: { level: "Basic", features_detected: [] },
-      overall_picture: { project_about: "Analysis failed", tools_plain_bullets: "", current_focus: "", architectural_style: "", significant_change: false, push_summary: "LLM API error" },
-      assessment: { advantages: "", disadvantages: "", improvement_areas: "", context_and_fit: "", source_structure: "", completeness: "", security: "Service limits reached or invalid key." },
+      overall_picture: { project_about: "Analysis failed", tools_plain_bullets: "", current_focus: "", architectural_style: "", significant_change: false, push_summary: `LLM API Error: ${error.message}` },
+      assessment: { advantages: "", disadvantages: "", improvement_areas: "", context_and_fit: "", source_structure: "", completeness: "", security: `Service limits reached or invalid key. Details: ${error.message}` },
       suggested_test_cases: [],
       suggested_questions_for_team: [],
       suggested_prompt_refinement: ""
@@ -292,10 +292,10 @@ async function analyzeTeamAggregate(teamId, commits, priorReviews) {
     console.error('Error generating aggregate review with Gemini:', error.message);
     return {
       criteria_comments: {
-        R1_01: { grade: "Khá", comment: "Analysis failed due to API limitations." },
+        R1_01: { grade: "Khá", comment: `Analysis failed due to API limitations. Details: ${error.message}` },
         R1_02: { grade: "Khá", comment: "Analysis failed." }
       },
-      smb_scale_advisory: { summary: "Service limits or API failure." },
+      smb_scale_advisory: { summary: `Service limits or API failure. Details: ${error.message}` },
       overall_picture: { historical_synthesis: "Failed", evolution_notes: "None" }
     };
   }
