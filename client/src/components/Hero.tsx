@@ -21,7 +21,7 @@ export default function Hero({ user, roles }: HeroProps) {
               [SYSTEM_READY: PHASE_01]
             </span>
           </div>
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-primary-container leading-tight uppercase font-sans">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary-container leading-tight uppercase font-sans">
             LẬP TRÌNH TƯƠNG LAI:<br />
             <span className="text-white">SEAL HACKATHON</span>
           </h1>

@@ -89,7 +89,7 @@ export default function TeamsTab({
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[10px] font-bold text-indigo-400 font-mono">
-                        TEAM
+                        ĐỘI
                       </span>
                       <h5 className="font-bold text-slate-200 text-sm">
                         {team.name}
@@ -150,7 +150,7 @@ export default function TeamsTab({
                             • {m.userId?.fullName}{" "}
                             {m.role === "leader" && (
                               <span className="text-[9px] text-indigo-400 font-mono font-bold">
-                                (Leader)
+                                (Trưởng nhóm)
                               </span>
                             )}
                           </span>
@@ -195,7 +195,7 @@ export default function TeamsTab({
                             defaultValue=""
                           >
                             <option value="" disabled>
-                              -- Chọn Track --
+                              -- Chọn Bảng đấu --
                             </option>
                             {tracks.map((track: any) => (
                               <option key={track._id} value={track._id}>
@@ -244,7 +244,7 @@ export default function TeamsTab({
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[10px] font-bold text-slate-500 font-mono">
-                        PENDING TEAM
+                        ĐỘI CHỜ DUYỆT
                       </span>
                       <h5 className="font-bold text-slate-400 text-sm">
                         {team.name}

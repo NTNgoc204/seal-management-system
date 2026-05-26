@@ -141,7 +141,7 @@ export default function TracksTab({
             type="submit"
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 rounded-lg cursor-pointer font-mono"
           >
-            + Thêm Track
+            + Thêm Bảng đấu
           </button>
         </form>
       </div>
@@ -179,12 +179,12 @@ export default function TracksTab({
                 onChange={(e) => setRoleType(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300"
               >
-                <option value="judge">Giám khảo (Judge)</option>
+                <option value="judge">Giám khảo</option>
                 <option value="coordinator">
-                  Điều phối viên (Coordinator)
+                  Ban tổ chức
                 </option>
-                <option value="mentor">Cố vấn (Mentor)</option>
-                <option value="participant">Thí sinh (Participant)</option>
+                <option value="mentor">Cố vấn</option>
+                <option value="participant">Thí sinh</option>
               </select>
             </div>
 
@@ -193,7 +193,7 @@ export default function TracksTab({
               roleType === "participant") && (
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                  Bảng đấu (Track)
+                  Bảng đấu
                 </label>
                 <select
                   value={roleTrackId}

@@ -12,7 +12,7 @@ export default function Footer() {
           <a className="text-on-surface-variant font-mono text-xs hover:text-primary-container transition-colors duration-300" href="#">Twitter</a>
           <a className="text-on-surface-variant font-mono text-xs hover:text-primary-container transition-colors duration-300" href="#">Discord</a>
           <a className="text-on-surface-variant font-mono text-xs hover:text-primary-container transition-colors duration-300" href="#">GitHub</a>
-          <a className="text-on-surface-variant font-mono text-xs hover:text-primary-container transition-colors duration-300" href="#">Contact</a>
+          <a className="text-on-surface-variant font-mono text-xs hover:text-primary-container transition-colors duration-300" href="#">Liên hệ</a>
         </div>
         <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100">
           <span className="font-mono text-[10px] text-on-surface-variant">Powered by</span>

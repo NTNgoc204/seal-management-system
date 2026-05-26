@@ -60,7 +60,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-indigo-400 text-lg font-semibold animate-pulse">Loading SEAL Hackathon Platform...</p>
+        <p className="text-indigo-400 text-lg font-semibold animate-pulse">Đang tải Nền tảng SEAL Hackathon...</p>
       </div>
     );
   }

@@ -1244,7 +1244,7 @@ export default function AdminDashboard() {
                   : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
               }`}
             >
-              Tracks & Roles
+              Bảng đấu & Phân quyền
             </button>
             <button
               onClick={() => setActiveTab("rounds")}
@@ -1254,7 +1254,7 @@ export default function AdminDashboard() {
                   : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
               }`}
             >
-              Rounds & Rubric
+              Vòng thi & Tiêu chí
             </button>
             <button
               onClick={() => setActiveTab("github")}
@@ -1265,7 +1265,7 @@ export default function AdminDashboard() {
               }`}
             >
               <Github size={14} />
-              GitHub & AI Review
+              GitHub & AI Đánh giá
             </button>
           </div>
 
