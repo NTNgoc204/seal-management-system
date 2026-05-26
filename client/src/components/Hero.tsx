@@ -11,14 +11,15 @@ export default function Hero({ user, roles }: HeroProps) {
   const dashboardLink = user ? (isSystemAdmin || isCoordinator ? '/admin' : '/team-area') : '/login';
 
   return (
-    <section className="relative min-h-screen bg-black flex items-center overflow-hidden py-12">
+    <section className="relative min-h-screen bg-black flex items-start overflow-hidden pt-8 pb-12">
       {/* Background Video */}
       <video
         muted
         autoPlay
         loop
         playsInline
-        className="absolute inset-0 w-full h-full object-cover translate-y-[17%]"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: 'center 60%' }}
         src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4"
       />
       
