@@ -256,20 +256,20 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             />
           </div>
           <div className="chip font-mono text-xs text-primary-container mb-3 bg-[#0a141d]/50">
-            [SYSTEM_READY]
+            [HỆ_THỐNG_SẴN_SÀNG]
           </div>
           <h1 className="font-mono text-xl font-bold text-on-surface mb-1 tracking-tight">
-            {isRegister ? 'Register' : 'Access Terminal'}
+            {isRegister ? 'Đăng ký Tài khoản' : 'Đăng nhập Hệ thống'}
           </h1>
           <p className="text-on-surface-variant text-xs font-sans">
-            {isRegister ? 'Initialize your credentials to join the protocol.' : 'Identify yourself to initiate session.'}
+            {isRegister ? 'Khởi tạo thông tin của bạn để tham gia cuộc thi.' : 'Xác thực tài khoản của bạn để bắt đầu phiên làm việc.'}
           </p>
         </div>
 
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs px-4 py-3 rounded-md mb-4 flex items-center gap-2 font-mono">
             <ShieldCheck size={16} className="text-rose-400 shrink-0" />
-            <span>[ERROR] {error}</span>
+            <span>[LỖI] {error}</span>
           </div>
         )}
 
@@ -278,14 +278,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           {isRegister && (
             <>
               <div>
-                <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="fullName">Full Name</label>
+                <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="fullName">Họ và Tên</label>
                 <div className="relative cyber-input-wrapper rounded overflow-hidden">
                   <div className="relative terminal-prompt">
                     <input 
                       type="text" 
                       id="fullName"
                       required 
-                      placeholder="Enter your legal name"
+                      placeholder="Nhập họ và tên đầy đủ của bạn"
                       value={fullName}
                       onChange={e => setFullName(e.target.value)}
                       className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
@@ -297,13 +297,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="studentId">University ID</label>
+                  <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="studentId">Mã số Sinh viên</label>
                   <div className="relative cyber-input-wrapper rounded overflow-hidden">
                     <div className="relative terminal-prompt">
                       <input 
                         type="text" 
                         id="studentId"
-                        placeholder="e.g. SE180xxx"
+                        placeholder="Ví dụ: SE180xxx"
                         value={studentId}
                         onChange={e => setStudentId(e.target.value)}
                         className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
@@ -314,12 +314,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 </div>
 
                 <div>
-                  <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="university">University</label>
+                  <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="university">Trường Đại học</label>
                   <div className="relative cyber-input-wrapper rounded overflow-hidden">
                     <input 
                       type="text" 
                       id="university"
-                      placeholder="e.g. FPT University"
+                      placeholder="Ví dụ: Đại học FPT"
                       value={university}
                       onChange={e => setUniversity(e.target.value)}
                       className="cyber-input relative z-10 w-full rounded py-2 px-3 font-mono text-xs focus:ring-0"
@@ -330,13 +330,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               </div>
 
               <div>
-                <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="githubUsername">GitHub Username</label>
+                <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="githubUsername">Tên tài khoản GitHub</label>
                 <div className="relative cyber-input-wrapper rounded overflow-hidden">
                   <div className="relative terminal-prompt">
                     <input 
                       type="text" 
                       id="githubUsername"
-                      placeholder="Enter github username"
+                      placeholder="Nhập tên tài khoản github"
                       value={githubUsername}
                       onChange={e => setGithubUsername(e.target.value)}
                       className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
@@ -349,14 +349,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           )}
 
           <div>
-            <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="email">Access Key (Email)</label>
+            <label className="block font-mono text-xs text-primary-container opacity-80 mb-1" htmlFor="email">Địa chỉ Email</label>
             <div className="relative cyber-input-wrapper rounded overflow-hidden">
               <div className="relative terminal-prompt">
                 <input 
                   type="email" 
                   id="email"
                   required 
-                  placeholder="Enter email address"
+                  placeholder="Nhập địa chỉ email của bạn"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
@@ -368,9 +368,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block font-mono text-xs text-primary-container opacity-80" htmlFor="password">Security Code (Password)</label>
+              <label className="block font-mono text-xs text-primary-container opacity-80" htmlFor="password">Mật khẩu</label>
               {!isRegister && (
-                <a href="#" className="font-mono text-[10px] text-primary-container hover:underline hover:text-[#7df4ff] transition-colors">Forgot Credentials?</a>
+                <a href="#" className="font-mono text-[10px] text-primary-container hover:underline hover:text-[#7df4ff] transition-colors">Quên mật khẩu?</a>
               )}
             </div>
             <div className="relative cyber-input-wrapper rounded overflow-hidden">
@@ -379,7 +379,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   type="password" 
                   id="password"
                   required 
-                  placeholder="Enter authentication hash"
+                  placeholder="Nhập mật khẩu bảo mật của bạn"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="cyber-input relative z-10 w-full rounded py-2 pl-11 pr-4 font-mono text-xs focus:ring-0"
@@ -394,7 +394,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             disabled={loading}
             className="btn-primary w-full py-2.5 font-mono text-xs font-bold uppercase tracking-widest active:scale-95 transition-all duration-300 mt-4 cursor-pointer"
           >
-            {loading ? 'Processing...' : isRegister ? 'Register' : 'Initiate Session'}
+            {loading ? 'Đang xử lý...' : isRegister ? 'Đăng ký ngay' : 'Đăng nhập'}
           </button>
         </form>
 
@@ -403,7 +403,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <div className="w-full border-t border-outline-variant/30"></div>
           </div>
           <span className="relative px-3 text-[10px] uppercase tracking-wider text-on-surface-variant/60 bg-[#0a141d] font-mono">
-            Or Authenticate Via
+            Hoặc đăng nhập bằng
           </span>
         </div>
 
@@ -433,8 +433,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </div>
 
         <div className="mt-6 pt-4 border-t border-outline-variant/30 text-center">
-          <p className="text-xs text-on-surface-variant">
-            {isRegister ? 'Already cleared?' : 'No active clearance?'}
+          <p className="text-xs text-on-surface-variant font-sans">
+            {isRegister ? 'Đã kích hoạt khóa truy cập?' : 'Chưa có tài khoản?' }
             <button
               onClick={() => {
                 setIsRegister(!isRegister);
@@ -442,7 +442,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               }}
               className="text-primary-container hover:text-primary-fixed underline font-mono text-xs ml-1.5 transition-colors duration-150 cursor-pointer"
             >
-              {isRegister ? 'Initiate Session' : 'Request New Access'}
+              {isRegister ? 'Đăng nhập ngay' : 'Đăng ký tài khoản mới'}
             </button>
           </p>
         </div>

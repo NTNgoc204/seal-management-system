@@ -21,14 +21,13 @@ export default function Hero({ user, roles }: HeroProps) {
               [SYSTEM_READY: PHASE_01]
             </span>
           </div>
-          
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter text-primary-container leading-tight uppercase font-sans">
-            CODE THE FUTURE:<br />
+            LẬP TRÌNH TƯƠNG LAI:<br />
             <span className="text-white">SEAL HACKATHON</span>
           </h1>
           
-          <p className="text-on-surface-variant text-base sm:text-lg max-w-lg leading-relaxed mx-auto md:mx-0">
-            Unleash your potential in the ultimate university coding challenge. Orchestrate innovation, master data structures, and architect the next generation of solutions.
+          <p className="text-on-surface-variant text-base sm:text-lg max-w-lg leading-relaxed mx-auto md:mx-0 font-sans">
+            Khai phóng tiềm năng của bạn trong thử thách lập trình đại học đỉnh cao. Sáng tạo giải pháp, làm chủ thuật toán và kiến tạo tương lai.
           </p>
 
           <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
@@ -36,13 +35,13 @@ export default function Hero({ user, roles }: HeroProps) {
               to={dashboardLink}
               className="btn-primary px-8 py-3.5 text-xs font-bold uppercase tracking-widest text-center transition-all duration-300 hover:scale-105 active:scale-95 shadow-[inset_0_0_10px_rgba(0,240,255,0.1)] hover:shadow-[0_0_20px_rgba(0,240,255,0.4)]"
             >
-              {user ? 'Vào Dashboard' : 'Join The Hack'}
+              {user ? 'Vào Dashboard' : 'Tham gia ngay'}
             </Link>
             <a 
               href="#schedule" 
               className="border border-white/20 text-white font-mono text-xs px-8 py-3.5 rounded-none hover:bg-white/5 transition-all duration-300 text-center uppercase tracking-widest"
             >
-              View Dossier
+              Xem Lịch trình
             </a>
           </div>
         </div>
