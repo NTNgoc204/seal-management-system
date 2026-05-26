@@ -2,16 +2,14 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   CalendarPlus,
-  Award,
   FolderKanban,
-  Lock,
-  Users,
   Info,
   Settings2,
-  ChevronRight,
-  BookOpen,
-  ListOrdered,
 } from "lucide-react";
+import TeamsTab from "./TeamsTab";
+import TracksTab from "./TracksTab";
+import RoundsTab from "./RoundsTab";
+import GithubTab from "./GithubTab";
 
 const Github = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
   <svg
@@ -61,8 +59,7 @@ export default function AdminDashboard() {
   const [existingRubrics, setExistingRubrics] = useState<any[]>([]);
   const [selectedSourceRubricId, setSelectedSourceRubricId] = useState("");
 
-  const [selectedRoundForRubric, setSelectedRoundForRubric] =
-    useState<any>(null);
+
   const [rubricName, setRubricName] = useState("");
   const [rubric, setRubric] = useState<any>(null);
   const [criteria, setCriteria] = useState<any[]>([]);
@@ -85,7 +82,7 @@ export default function AdminDashboard() {
   const [message, setMessage] = useState({ type: "", text: "" });
 
   // Tab management state
-  const [activeTab, setActiveTab] = useState<'arena' | 'github'>('arena');
+  const [activeTab, setActiveTab] = useState<'teams' | 'tracks' | 'rounds' | 'github'>('teams');
 
   // Rubric Edit Form States
   const [selectedRubricRoundId, setSelectedRubricRoundId] = useState('');
@@ -330,7 +327,7 @@ export default function AdminDashboard() {
   const handleSelectEvent = (eventObj: any) => {
     setSelectedEvent(eventObj);
     setSelectedTrack(null);
-    setSelectedRoundForRubric(null);
+
     setRubric(null);
     setCriteria([]);
     setMessage({ type: "", text: "" });
@@ -524,7 +521,7 @@ export default function AdminDashboard() {
       await fetchEventDetails();
 
       // Auto select the new round to view rubric
-      setSelectedRoundForRubric(newRound);
+
       setSelectedRubricRoundId(newRound._id);
 
       // Re-fetch existing rubrics list
@@ -1228,18 +1225,36 @@ export default function AdminDashboard() {
               </p>
             )}
           </div>
-
-          {/* Tab Switcher */}
           <div className="flex gap-4 border-b border-slate-800/80 pb-3">
             <button
-              onClick={() => setActiveTab("arena")}
+              onClick={() => setActiveTab("teams")}
               className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
-                activeTab === "arena"
+                activeTab === "teams"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25"
                   : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
               }`}
             >
-              Arena & Rubric Setup
+              Đội thi tham gia
+            </button>
+            <button
+              onClick={() => setActiveTab("tracks")}
+              className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
+                activeTab === "tracks"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25"
+                  : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
+              }`}
+            >
+              Tracks & Roles
+            </button>
+            <button
+              onClick={() => setActiveTab("rounds")}
+              className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
+                activeTab === "rounds"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25"
+                  : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
+              }`}
+            >
+              Rounds & Rubric
             </button>
             <button
               onClick={() => setActiveTab("github")}
@@ -1254,1108 +1269,147 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          {activeTab === "arena" ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column: Event details, tracks and rounds */}
-              <div className="lg:col-span-2 space-y-6">
+          {activeTab === "teams" && (
+            <TeamsTab
+              selectedEvent={selectedEvent}
+              teamsList={teamsList}
+              tracks={tracks}
+              loading={loading}
+              handleDistributeTeams={handleDistributeTeams}
+              handleAssignTrack={handleAssignTrack}
+            />
+          )}
 
-            {/* Config panel: Tracks and Rounds details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Tracks list & add track */}
-              <div className="glass p-6 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
-                    <FolderKanban size={16} className="text-indigo-400" />
-                    <span>Các bảng đấu (Tracks)</span>
-                  </h3>
-                  <div className="space-y-2 mb-6 max-h-48 overflow-y-auto pr-1">
-                    {tracks.map((t: any) => (
-                      <button
-                        key={t._id}
-                        onClick={() => {
-                          setSelectedTrack(t);
-                          // Auto select first round of this track
-                          const firstRound = rounds.find(
-                            (r) => r.trackId === t._id,
-                          );
-                          if (firstRound) {
-                            setSelectedRubricRoundId(firstRound._id);
-                          } else {
-                            setSelectedRubricRoundId('');
-                            setRubric(null);
-                            setCriteria([]);
-                          }
-                        }}
-                        className={`w-full text-left p-3 rounded-xl border text-xs flex justify-between items-center transition-all ${
-                          selectedTrack?._id === t._id
-                            ? "bg-indigo-600/10 border-indigo-500/50 text-white"
-                            : "border-slate-800/80 bg-slate-900/10 hover:border-slate-700 text-slate-400"
-                        }`}
-                      >
-                        <span className="font-semibold">
-                          {t.name} (Tối đa {t.maxTeams} đội)
-                        </span>
-                        <ChevronRight size={14} />
-                      </button>
-                    ))}
-                    {tracks.length === 0 && (
-                      <p className="text-xs text-slate-500 italic">
-                        Chưa có bảng đấu nào.
-                      </p>
-                    )}
-                  </div>
-                </div>
+          {activeTab === "tracks" && (
+            <TracksTab
+              selectedEvent={selectedEvent}
+              tracks={tracks}
+              trackName={trackName}
+              setTrackName={setTrackName}
+              trackDesc={trackDesc}
+              setTrackDesc={setTrackDesc}
+              trackMax={trackMax}
+              setTrackMax={setTrackMax}
+              handleCreateTrack={handleCreateTrack}
+              selectedTrack={selectedTrack}
+              setSelectedTrack={setSelectedTrack}
+              rounds={rounds}
+              setSelectedRubricRoundId={setSelectedRubricRoundId}
+              setRubric={setRubric}
+              setCriteria={setCriteria}
+              roleEmail={roleEmail}
+              setRoleEmail={setRoleEmail}
+              roleType={roleType}
+              setRoleType={setRoleType}
+              roleTrackId={roleTrackId}
+              setRoleTrackId={setRoleTrackId}
+              handleAssignRole={handleAssignRole}
+              eventRoles={eventRoles}
+              handleRemoveRole={handleRemoveRole}
+              attachmentName={attachmentName}
+              setAttachmentName={setAttachmentName}
+              attachmentUrl={attachmentUrl}
+              setAttachmentUrl={setAttachmentUrl}
+              handleUploadExam={handleUploadExam}
+              loading={loading}
+            />
+          )}
 
-                <form
-                  onSubmit={handleCreateTrack}
-                  className="space-y-3 pt-3 border-t border-slate-800/80"
-                >
-                  <p className="text-[10px] font-bold text-slate-300 uppercase font-mono">
-                    Tạo thêm bảng đấu:
-                  </p>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Tên bảng đấu (e.g. AI & IoT)"
-                    value={trackName}
-                    onChange={(e) => setTrackName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Số lượng đội tối đa (e.g. 5)"
-                    value={trackMax}
-                    onChange={(e) => setTrackMax(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                  />
-                  <button
-                    type="submit"
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 rounded-lg cursor-pointer font-mono"
-                  >
-                    + Thêm Track
-                  </button>
-                </form>
-              </div>
+          {activeTab === "rounds" && (
+            <RoundsTab
+              selectedEvent={selectedEvent}
+              tracks={tracks}
+              rounds={rounds}
+              selectedTrack={selectedTrack}
+              setSelectedTrack={setSelectedTrack}
+              selectedRubricRoundId={selectedRubricRoundId}
+              setSelectedRubricRoundId={setSelectedRubricRoundId}
+              roundName={roundName}
+              setRoundName={setRoundName}
+              roundOrder={roundOrder}
+              setRoundOrder={setRoundOrder}
+              roundDeadline={roundDeadline}
+              setRoundDeadline={setRoundDeadline}
+              roundLimit={roundLimit}
+              setRoundLimit={setRoundLimit}
+              rubricTypeOption={rubricTypeOption}
+              setRubricTypeOption={setRubricTypeOption}
+              existingRubrics={existingRubrics}
+              selectedSourceRubricId={selectedSourceRubricId}
+              setSelectedSourceRubricId={setSelectedSourceRubricId}
+              rubricName={rubricName}
+              setRubricName={setRubricName}
+              handleCreateRound={handleCreateRound}
+              rubric={rubric}
+              criteria={criteria}
+              editingRubric={editingRubric}
+              setEditingRubric={setEditingRubric}
+              editRubricName={editRubricName}
+              setEditRubricName={setEditRubricName}
+              editRubricDesc={editRubricDesc}
+              setEditRubricDesc={setEditRubricDesc}
+              editRubricTotalWeight={editRubricTotalWeight}
+              setEditRubricTotalWeight={setEditRubricTotalWeight}
+              editRubricMaxScore={editRubricMaxScore}
+              setEditRubricMaxScore={setEditRubricMaxScore}
+              editRubricIsActive={editRubricIsActive}
+              setEditRubricIsActive={setEditRubricIsActive}
+              handleUpdateRubric={handleUpdateRubric}
+              handleDeleteRubric={handleDeleteRubric}
+              handleLockRubric={handleLockRubric}
+              critCode={critCode}
+              setCritCode={setCritCode}
+              critName={critName}
+              setCritName={setCritName}
+              critWeight={critWeight}
+              setCritWeight={setCritWeight}
+              critDesc={critDesc}
+              setCritDesc={setCritDesc}
+              critMaxScore={critMaxScore}
+              setCritMaxScore={setCritMaxScore}
+              critOrder={critOrder}
+              setCritOrder={setCritOrder}
+              critGradingLevels={critGradingLevels}
+              setCritGradingLevels={setCritGradingLevels}
+              editingCriterion={editingCriterion}
+              setEditingCriterion={setEditingCriterion}
+              handleSaveCriterion={handleSaveCriterion}
+              handleDeleteCriterion={handleDeleteCriterion}
+              handleStartEditCriterion={handleStartEditCriterion}
+              handleCancelEditCriterion={handleCancelEditCriterion}
+              levelLabel={levelLabel}
+              setLevelLabel={setLevelLabel}
+              levelMinScore={levelMinScore}
+              setLevelMinScore={setLevelMinScore}
+              levelMaxScore={levelMaxScore}
+              setLevelMaxScore={setLevelMaxScore}
+              levelDesc={levelDesc}
+              setLevelDesc={setLevelDesc}
+              handleAddGradingLevel={handleAddGradingLevel}
+              handleRemoveGradingLevel={handleRemoveGradingLevel}
+              handleCreateRubric={handleCreateRubric}
+              loading={loading}
+              setRubric={setRubric}
+              setCriteria={setCriteria}
+            />
+          )}
 
-              {/* Rounds List of selected track */}
-              <div className="glass p-6 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
-                    <ListOrdered size={16} className="text-indigo-400" />
-                    <span>Các Vòng thi ({selectedTrack?.name || "Chung"})</span>
-                  </h3>
-                  <div className="space-y-2 mb-6 max-h-48 overflow-y-auto pr-1">
-                    {rounds
-                      .filter((r: any) => r.trackId === selectedTrack?._id)
-                      .map((r: any) => (
-                        <button
-                          key={r._id}
-                          onClick={() => {
-                            setSelectedRoundForRubric(r);
-                            setSelectedRubricRoundId(r._id);
-                          }}
-                          className={`w-full text-left p-3 rounded-xl border text-xs flex justify-between items-center transition-all ${
-                            selectedRoundForRubric?._id === r._id
-                              ? "bg-indigo-600/10 border-indigo-500/50 text-white font-bold"
-                              : "border-slate-800/80 bg-slate-900/10 hover:border-slate-700 text-slate-400"
-                          }`}
-                        >
-                          <div>
-                            <p>{r.name}</p>
-                            <p className="text-[9px] text-slate-500 mt-0.5">
-                              Thứ tự: {r.order} | Lấy Top: {r.advanceTopN}
-                            </p>
-                          </div>
-                          <ChevronRight size={14} />
-                        </button>
-                      ))}
-                    {rounds.filter((r: any) => r.trackId === selectedTrack?._id)
-                      .length === 0 && (
-                      <p className="text-xs text-slate-500 italic">
-                        Chưa cấu hình vòng thi nào cho bảng đấu này.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Quick create round form */}
-                <form
-                  onSubmit={handleCreateRound}
-                  className="space-y-3 pt-3 border-t border-slate-800/80"
-                >
-                  <p className="text-[10px] font-bold text-slate-300 uppercase font-mono">
-                    Tạo thêm vòng thi cho bảng này:
-                  </p>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Tên vòng (e.g. Bán kết)"
-                    value={roundName}
-                    onChange={(e) => setRoundName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      required
-                      placeholder="Thứ tự (e.g. 2)"
-                      value={roundOrder}
-                      onChange={(e) => setRoundOrder(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                    />
-                    <input
-                      type="number"
-                      required
-                      placeholder="Lấy Top N (e.g. 5)"
-                      value={roundLimit}
-                      onChange={(e) => setRoundLimit(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                    />
-                  </div>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={roundDeadline}
-                    onChange={(e) => setRoundDeadline(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-mono"
-                  />
-
-                  {/* Rubric Configuration */}
-                  <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 space-y-2">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                      Bảng tiêu chí (Rubric):
-                    </p>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-300 font-mono cursor-pointer">
-                        <input
-                          type="radio"
-                          name="roundRubricOption"
-                          value="new"
-                          checked={rubricTypeOption === "new"}
-                          onChange={() => setRubricTypeOption("new")}
-                          className="text-indigo-600 focus:ring-0"
-                        />
-                        Mới
-                      </label>
-                      <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-300 font-mono cursor-pointer">
-                        <input
-                          type="radio"
-                          name="roundRubricOption"
-                          value="existing"
-                          checked={rubricTypeOption === "existing"}
-                          onChange={() => setRubricTypeOption("existing")}
-                          className="text-indigo-600 focus:ring-0"
-                        />
-                        Sao chép cũ
-                      </label>
-                    </div>
-
-                    {rubricTypeOption === "existing" && (
-                      <select
-                        value={selectedSourceRubricId}
-                        onChange={(e) =>
-                          setSelectedSourceRubricId(e.target.value)
-                        }
-                        className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono"
-                      >
-                        <option value="">-- Chọn Rubric cũ --</option>
-                        {existingRubrics.map((r: any) => (
-                          <option key={r._id} value={r._id}>
-                            {r.name} ({r.eventId?.name || "Sự kiện cũ"})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 rounded-lg cursor-pointer font-mono"
-                  >
-                    + Thêm Vòng Đấu & Rubric
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Candidates and Teams management panel */}
-            <div className="glass p-6 rounded-2xl space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-slate-800">
-                <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-1.5 font-mono">
-                    <Users size={18} className="text-indigo-400" />
-                    <span>Đội thi & Thí sinh ({teamsList.length} đội)</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    Danh sách các đội thi đã đăng ký và phân nhóm trong sự kiện
-                    này
-                  </p>
-                </div>
-
-                {/* Auto distribute button - Always visible but styled according to state */}
-                <div className="flex flex-col items-end gap-1">
-                  <button
-                    onClick={handleDistributeTeams}
-                    disabled={
-                      loading ||
-                      tracks.length === 0 ||
-                      !teamsList.some(
-                        (t) => t.status === "confirmed" && !t.trackId,
-                      )
-                    }
-                    className={`text-xs font-bold px-4 py-2 rounded-xl text-white font-mono transition-all flex items-center gap-1.5 ${
-                      tracks.length > 0 &&
-                      teamsList.some(
-                        (t) => t.status === "confirmed" && !t.trackId,
-                      )
-                        ? "bg-indigo-600 hover:bg-indigo-500 cursor-pointer shadow-lg shadow-indigo-600/25"
-                        : "bg-slate-800/80 text-slate-500 cursor-not-allowed border border-slate-700/50"
-                    }`}
-                  >
-                    Chia bảng ngẫu nhiên vào Track
-                  </button>
-                  {tracks.length === 0 && (
-                    <span className="text-[9px] text-rose-400 font-mono">
-                      * Cần tạo Bảng đấu (Track) trước
-                    </span>
-                  )}
-                  {tracks.length > 0 &&
-                    !teamsList.some(
-                      (t) => t.status === "confirmed" && !t.trackId,
-                    ) && (
-                      <span className="text-[9px] text-slate-500 font-mono">
-                        * Không có nhóm thi đấu chờ chia bảng
-                      </span>
-                    )}
-                </div>
-              </div>
-
-              {/* Grouped lists */}
-              <div className="space-y-6">
-                {/* 1. Confirmed Teams */}
-                <div>
-                  <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono mb-3 flex items-center gap-2">
-                    <span>
-                      ✓ Đội thi đã Xác nhận (
-                      {teamsList.filter((t) => t.status === "confirmed").length}
-                      )
-                    </span>
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {teamsList
-                      .filter((t) => t.status === "confirmed")
-                      .map((team: any) => (
-                        <div
-                          key={team._id}
-                          className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-all space-y-3"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[10px] font-bold text-indigo-400 font-mono">
-                                TEAM
-                              </span>
-                              <h5 className="font-bold text-slate-200 text-sm">
-                                {team.name}
-                              </h5>
-                            </div>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
-                                team.trackId
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                  : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                              }`}
-                            >
-                              {team.trackId?.name ||
-                                (team.trackId ? "Đã gán" : "Chưa chia bảng")}
-                            </span>
-                          </div>
-
-                          {/* Leader & Repo Info */}
-                          <div className="text-[11px] text-slate-400 space-y-1">
-                            <p>
-                              Trưởng nhóm:{" "}
-                              <strong className="text-slate-300">
-                                {team.leaderId?.fullName}
-                              </strong>{" "}
-                              ({team.leaderId?.email})
-                            </p>
-                            {team.repository ? (
-                              <p>
-                                Repository:{" "}
-                                <a
-                                  href={team.repository.repoUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-indigo-400 hover:underline"
-                                >
-                                  {team.repository.repoName}
-                                </a>
-                              </p>
-                            ) : (
-                              <p className="text-slate-500 italic">
-                                GitHub Repo: Chưa cấp phát (chờ chia bảng)
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Members */}
-                          <div className="border-t border-slate-800/80 pt-2">
-                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                              Thành viên ({team.members?.length || 0}):
-                            </p>
-                            <div className="space-y-1">
-                              {team.members?.map((m: any) => (
-                                <div
-                                  key={m.userId?._id}
-                                  className="flex justify-between text-[10px] text-slate-400"
-                                >
-                                  <span>
-                                    • {m.userId?.fullName}{" "}
-                                    {m.role === "leader" && (
-                                      <span className="text-[9px] text-indigo-400 font-mono font-bold">
-                                        (Leader)
-                                      </span>
-                                    )}
-                                  </span>
-                                  <span className="text-slate-500 font-mono">
-                                    {m.userId?.githubUsername ||
-                                      "Chưa liên kết Git"}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Assign Track controls */}
-                          {!team.trackId && (
-                            <div className="border-t border-slate-800/80 pt-2 flex flex-col gap-1.5">
-                              <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider font-mono">
-                                Phân chia vào bảng đấu:
-                              </p>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() =>
-                                    handleAssignTrack(team._id, "random")
-                                  }
-                                  disabled={loading || tracks.length === 0}
-                                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-[10px] text-white font-bold py-1.5 px-2 rounded-lg font-mono transition-all flex items-center justify-center gap-1 cursor-pointer disabled:cursor-not-allowed border border-indigo-500/20"
-                                >
-                                  🎲 Phân ngẫu nhiên
-                                </button>
-
-                                {tracks.length > 0 && (
-                                  <select
-                                    onChange={(e) => {
-                                      if (e.target.value) {
-                                        handleAssignTrack(
-                                          team._id,
-                                          e.target.value,
-                                        );
-                                      }
-                                    }}
-                                    disabled={loading}
-                                    className="flex-1 bg-slate-900 border border-slate-700 text-slate-300 text-[10px] font-bold py-1 px-2 rounded-lg font-mono focus:outline-none focus:border-indigo-500"
-                                    defaultValue=""
-                                  >
-                                    <option value="" disabled>
-                                      -- Chọn Track --
-                                    </option>
-                                    {tracks.map((track: any) => (
-                                      <option key={track._id} value={track._id}>
-                                        {track.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-                              </div>
-                              {tracks.length === 0 && (
-                                <p className="text-[8px] text-rose-400 font-mono italic">
-                                  * Cần tạo Bảng đấu (Track) trước
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    {teamsList.filter((t) => t.status === "confirmed")
-                      .length === 0 && (
-                      <p className="col-span-2 text-xs text-slate-500 italic text-center py-2">
-                        Chưa có đội thi nào xác nhận hoàn tất.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. Pending Teams */}
-                <div>
-                  <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider font-mono mb-3">
-                    ⏳ Đội thi đang chờ xác nhận (
-                    {
-                      teamsList.filter((t) => t.status === "pending_confirm")
-                        .length
-                    }
-                    )
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {teamsList
-                      .filter((t) => t.status === "pending_confirm")
-                      .map((team: any) => (
-                        <div
-                          key={team._id}
-                          className="bg-slate-900/10 p-4 rounded-xl border border-slate-800/40 space-y-3 opacity-75"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-500 font-mono">
-                                PENDING TEAM
-                              </span>
-                              <h5 className="font-bold text-slate-400 text-sm">
-                                {team.name}
-                              </h5>
-                            </div>
-                            <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded font-mono font-bold">
-                              Chờ duyệt
-                            </span>
-                          </div>
-
-                          {/* Members with status */}
-                          <div className="space-y-1">
-                            {team.members?.map((m: any) => (
-                              <div
-                                key={m.userId?._id}
-                                className="flex justify-between items-center text-[10px]"
-                              >
-                                <span className="text-slate-400">
-                                  • {m.userId?.fullName}
-                                </span>
-                                <span
-                                  className={`text-[9px] font-mono px-1 rounded ${
-                                    m.confirmStatus === "confirmed"
-                                      ? "text-emerald-400 bg-emerald-500/5"
-                                      : "text-slate-500 bg-slate-800"
-                                  }`}
-                                >
-                                  {m.confirmStatus === "confirmed"
-                                    ? "Đã nhận"
-                                    : "Chờ xác nhận"}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    {teamsList.filter((t) => t.status === "pending_confirm")
-                      .length === 0 && (
-                      <p className="col-span-2 text-xs text-slate-500 italic text-center py-2">
-                        Không có nhóm nào ở trạng thái chờ xác nhận.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Rubric and Criterion Configurations */}
-            <div className="glass p-6 rounded-2xl space-y-4">
-              <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
-                <Award size={18} className="text-indigo-400" />
-                <span>Cấu hình Rubric & Tiêu chí</span>
-              </h3>
-
-              {/* Round Selector */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">Chọn Vòng Đấu (Round)</label>
-                <select
-                  value={selectedRubricRoundId}
-                  onChange={e => setSelectedRubricRoundId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
-                >
-                  <option value="">-- Chọn Vòng Đấu --</option>
-                  {rounds.filter((r: any) => r.trackId === selectedTrack?._id).map((r: any) => (
-                    <option key={r._id} value={r._id}>{r.name} (Vòng {r.order})</option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedRubricRoundId ? (
-                rubric ? (
-                  editingRubric ? (
-                    /* Edit Rubric Form */
-                    <form onSubmit={handleUpdateRubric} className="space-y-3.5 bg-slate-900/40 p-4 rounded-xl border border-slate-800/80 font-mono">
-                      <p className="text-xs font-bold text-slate-200 uppercase tracking-wider">Chỉnh sửa Rubric</p>
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">Tên Rubric</label>
-                        <input
-                          type="text" required
-                          value={editRubricName} onChange={e => setEditRubricName(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">Mô tả</label>
-                        <textarea
-                          value={editRubricDesc} onChange={e => setEditRubricDesc(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg text-xs" rows={2}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">Điểm tối đa / Tiêu chí</label>
-                        <input
-                          type="number" required
-                          value={editRubricMaxScore} onChange={e => setEditRubricMaxScore(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg text-xs"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={editRubricIsActive} onChange={e => setEditRubricIsActive(e.target.checked)}
-                          id="edit-rubric-active"
-                        />
-                        <label htmlFor="edit-rubric-active" className="text-xs text-slate-300">Hoạt động (Active)</label>
-                      </div>
-                      <div className="flex gap-2">
-                        <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 rounded-lg text-xs cursor-pointer">Lưu</button>
-                        <button type="button" onClick={() => setEditingRubric(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 rounded-lg text-xs cursor-pointer">Hủy</button>
-                      </div>
-                    </form>
-                  ) : (
-                    /* Display Rubric Details & Criteria */
-                    <div className="space-y-4 font-mono">
-                      <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
-                        <div>
-                          <p className="font-bold text-indigo-400">{rubric.name}</p>
-                          {rubric.description && <p className="text-[10px] text-slate-400 mt-0.5">{rubric.description}</p>}
-                          <p className="text-[10px] text-slate-400 mt-1">Trọng số: {rubric.totalWeight}% | Max điểm: {rubric.maxCriterionScore}đ</p>
-                        </div>
-                        <div className="flex flex-col gap-2 items-end">
-                          {rubric.isLocked ? (
-                            <span className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded text-[10px] font-bold font-mono">
-                              <Lock size={10} /> ĐÃ KHÓA
-                            </span>
-                          ) : (
-                            <div className="flex gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditRubricName(rubric.name);
-                                  setEditRubricDesc(rubric.description || '');
-                                  setEditRubricTotalWeight(String(rubric.totalWeight));
-                                  setEditRubricMaxScore(String(rubric.maxCriterionScore));
-                                  setEditRubricIsActive(rubric.isActive);
-                                  setEditingRubric(true);
-                                }}
-                                className="bg-slate-850 hover:bg-slate-800 border border-indigo-500/20 text-[9px] font-bold px-2 py-0.5 rounded text-indigo-450 cursor-pointer"
-                              >
-                                SỬA
-                              </button>
-                              <button type="button" onClick={handleDeleteRubric} className="bg-slate-850 hover:bg-slate-800 border border-rose-500/20 text-[9px] font-bold px-2 py-0.5 rounded text-rose-450 cursor-pointer">
-                                XÓA
-                              </button>
-                            </div>
-                          )}
-                          
-                          {!rubric.isLocked && (
-                            <button onClick={handleLockRubric} className="bg-indigo-600 hover:bg-indigo-500 text-[9px] font-bold px-2.5 py-1 rounded text-white cursor-pointer">
-                              KHÓA RUBRIC
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Weight progress bar */}
-                      {(() => {
-                        const currentWeightSum = criteria.reduce((sum, c) => sum + (c.weight || 0), 0);
-                        const isFullyWeighted = Math.abs(currentWeightSum - rubric.totalWeight) < 0.01;
-                        return (
-                          <div className="bg-slate-900/30 p-3.5 rounded-xl border border-slate-800 text-[10px] space-y-1.5">
-                            <div className="flex justify-between items-center font-semibold font-mono">
-                              <span className="text-slate-400">Trọng số tiêu chí đã phân bổ:</span>
-                              <span className={isFullyWeighted ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
-                                {currentWeightSum} / {rubric.totalWeight}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-900">
-                              <div
-                                  className={`h-full transition-all duration-300 ${isFullyWeighted ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                                  style={{ width: `${Math.min(100, (currentWeightSum / rubric.totalWeight) * 100)}%` }}
-                              ></div>
-                            </div>
-                            {!isFullyWeighted && !rubric.isLocked && (
-                              <p className="text-[9px] text-amber-500/80 italic font-mono">
-                                * Tổng trọng số tiêu chí phải bằng {rubric.totalWeight}% mới có thể khoá Rubric.
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      {/* Criteria list */}
-                      <div className="space-y-2">
-                        <p className="text-xs font-bold text-slate-300">Tiêu chí chi tiết:</p>
-                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                          {criteria.map((c: any) => (
-                            <div key={c._id} className="bg-slate-900/30 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <span className="font-bold text-slate-200">[{c.code}] {c.name}</span>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">{c.description || 'Không mô tả.'}</p>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-indigo-400 font-bold">{c.weight}%</span>
-                                  <p className="text-[9px] text-slate-500 mt-0.5">Max: {c.maxScore}đ | Hạng: {c.order || 0}</p>
-                                </div>
-                              </div>
-
-                              {c.gradingLevels && c.gradingLevels.length > 0 && (
-                                <div className="pt-1.5 border-t border-slate-850">
-                                  <div className="flex flex-wrap gap-1">
-                                    {c.gradingLevels.map((lvl: any, idx: number) => (
-                                      <span key={idx} className="bg-slate-950 px-2 py-0.5 rounded text-[8px] border border-slate-850 text-slate-400" title={lvl.description}>
-                                        <strong className="text-indigo-300">{lvl.label}</strong> ({lvl.minScore}-{lvl.maxScore}đ)
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {!rubric.isLocked && (
-                                <div className="flex gap-2 justify-end pt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStartEditCriterion(c)}
-                                    className="text-[9px] text-indigo-400 hover:underline font-semibold cursor-pointer"
-                                  >
-                                    Sửa
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteCriterion(c._id)}
-                                    className="text-[9px] text-rose-400 hover:underline font-semibold cursor-pointer"
-                                  >
-                                    Xóa
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          {criteria.length === 0 && <p className="text-xs text-slate-500 italic">Chưa có tiêu chí nào.</p>}
-                        </div>
-                      </div>
-
-                      {/* Add/Edit Criterion Form */}
-                      {!rubric.isLocked && (
-                        <form onSubmit={handleSaveCriterion} className="space-y-3 pt-3 border-t border-slate-800">
-                          <p className="text-xs font-bold text-slate-350">{editingCriterion ? `Sửa tiêu chí [${editingCriterion.code}]` : 'Thêm tiêu chí mới'}</p>
-                          
-                          <div className="grid grid-cols-3 gap-2">
-                            <input 
-                              type="text" required placeholder="MÃ (e.g. CODE)"
-                              value={critCode} onChange={e => setCritCode(e.target.value)}
-                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                            />
-                            <input 
-                              type="text" required placeholder="Tên tiêu chí (e.g. Clean Code)"
-                              value={critName} onChange={e => setCritName(e.target.value)}
-                              className="w-full px-2 py-1.5 rounded text-xs col-span-2 bg-slate-900 border border-slate-800 text-slate-200"
-                            />
-                          </div>
-                          
-                          <div className="grid grid-cols-3 gap-2">
-                            <input 
-                              type="number" required placeholder="Trọng số %"
-                              value={critWeight} onChange={e => setCritWeight(e.target.value)}
-                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                            />
-                            <input 
-                              type="number" required placeholder="Max Điểm"
-                              value={critMaxScore} onChange={e => setCritMaxScore(e.target.value)}
-                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                            />
-                            <input 
-                              type="number" placeholder="Thứ tự"
-                              value={critOrder} onChange={e => setCritOrder(e.target.value)}
-                              className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                            />
-                          </div>
-
-                          <input 
-                            type="text" placeholder="Mô tả tiêu chí"
-                            value={critDesc} onChange={e => setCritDesc(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                          />
-
-                          {/* Grading Levels Management in Form */}
-                          <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-900 space-y-2">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Định nghĩa mức chấm (Grading Levels)</p>
-                            
-                            {/* Display currently added levels in form */}
-                            {critGradingLevels.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-2">
-                                {critGradingLevels.map((lvl, idx) => (
-                                  <div key={idx} className="bg-slate-900 border border-slate-800 text-[9px] px-2 py-0.5 rounded-md flex items-center gap-1.5">
-                                    <span className="text-slate-300">
-                                      <strong className="text-indigo-400">{lvl.label}</strong> ({lvl.minScore}-{lvl.maxScore}đ)
-                                    </span>
-                                    <button type="button" onClick={() => handleRemoveGradingLevel(idx)} className="text-rose-400 font-bold hover:text-rose-350">×</button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Form inputs for new level */}
-                            <div className="grid grid-cols-3 gap-2">
-                              <input
-                                type="text" placeholder="Nhãn (Tốt)"
-                                value={levelLabel} onChange={e => setLevelLabel(e.target.value)}
-                                className="w-full px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
-                              />
-                              <input
-                                type="number" step="0.1" placeholder="Điểm min (7.0)"
-                                value={levelMinScore} onChange={e => setLevelMinScore(e.target.value)}
-                                className="w-full px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
-                              />
-                              <input
-                                type="number" step="0.1" placeholder="Điểm max (8.5)"
-                                value={levelMaxScore} onChange={e => setLevelMaxScore(e.target.value)}
-                                className="w-full px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="text" placeholder="Mô tả chi tiết mức chấm này..."
-                                value={levelDesc} onChange={e => setLevelDesc(e.target.value)}
-                                className="flex-1 px-2 py-1 rounded text-[10px] bg-slate-900 border border-slate-800 text-slate-200"
-                              />
-                              <button
-                                type="button"
-                                onClick={handleAddGradingLevel}
-                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded text-[10px] font-bold cursor-pointer"
-                              >
-                                + Thêm
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg cursor-pointer">
-                              {editingCriterion ? 'Lưu cập nhật' : 'Lưu tiêu chí'}
-                            </button>
-                            {editingCriterion && (
-                              <button type="button" onClick={handleCancelEditCriterion} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-4 rounded-lg cursor-pointer">
-                                Hủy sửa
-                              </button>
-                            )}
-                          </div>
-                        </form>
-                      )}
-                    </div>
-                  )
-                ) : (
-                  /* Initial Rubric creation form if no rubric exists */
-                  <form onSubmit={handleCreateRubric} className="space-y-3 font-mono">
-                    <p className="text-xs text-slate-400">Chưa khởi tạo Rubric cho Vòng Đấu này.</p>
-                    <input 
-                      type="text" required placeholder="Tên Rubric (e.g. Rubric Đánh giá Vòng 1)"
-                      value={rubricName} onChange={e => setRubricName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                    />
-                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 rounded-lg cursor-pointer">
-                      Khởi tạo Rubric
-                    </button>
-                  </form>
-                )
-              ) : (
-                <p className="text-xs text-slate-500 italic text-center py-4 font-mono">Vui lòng chọn Vòng Đấu để cấu hình Rubric.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Roles & Exam uploads */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Phân quyền thành viên BTC & Thí sinh */}
-            <div className="glass p-6 rounded-2xl">
-              <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
-                <Users size={16} className="text-indigo-400" />
-                <span>Phân quyền thành viên</span>
-              </h3>
-
-              <form onSubmit={handleAssignRole} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                    Email Người dùng
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="giamkhao@domain.com"
-                    value={roleEmail}
-                    onChange={(e) => setRoleEmail(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                    Vai trò
-                  </label>
-                  <select
-                    value={roleType}
-                    onChange={(e) => setRoleType(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300"
-                  >
-                    <option value="judge">Giám khảo (Judge)</option>
-                    <option value="coordinator">
-                      Điều phối viên (Coordinator)
-                    </option>
-                    <option value="mentor">Cố vấn (Mentor)</option>
-                    <option value="participant">Thí sinh (Participant)</option>
-                  </select>
-                </div>
-
-                {(roleType === "judge" ||
-                  roleType === "mentor" ||
-                  roleType === "participant") && (
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                      Bảng đấu (Track)
-                    </label>
-                    <select
-                      value={roleTrackId}
-                      onChange={(e) => setRoleTrackId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300"
-                    >
-                      <option value="">
-                        Toàn bộ cuộc thi (Không chọn Track)
-                      </option>
-                      {tracks.map((t: any) => (
-                        <option key={t._id} value={t._id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all cursor-pointer font-mono"
-                >
-                  Gán Quyền Hạn
-                </button>
-              </form>
-            </div>
-
-            {/* Danh sách thành viên đã phân quyền */}
-            <div className="glass p-6 rounded-2xl">
-              <h3 className="text-md font-bold text-white mb-3 flex items-center gap-1.5 font-mono">
-                <Users size={16} className="text-indigo-400" />
-                <span>Danh sách phân quyền ({eventRoles.length})</span>
-              </h3>
-              <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-                {eventRoles.map((role: any) => (
-                  <div
-                    key={role._id}
-                    className="p-3 bg-slate-900/40 rounded-xl border border-slate-800/80 text-xs flex justify-between items-center font-sans"
-                  >
-                    <div>
-                      <p className="font-bold text-slate-200">
-                        {role.userId?.fullName || "Không rõ tên"}
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                        {role.userId?.email}
-                      </p>
-                      <p className="text-[10px] text-indigo-400 font-mono mt-0.5 uppercase font-bold">
-                        {role.role}{" "}
-                        {role.trackId
-                          ? `// Bảng: ${role.trackId.name}`
-                          : "// Toàn cuộc thi"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveRole(role._id)}
-                      className="text-rose-500 hover:text-rose-400 font-bold text-[10px] uppercase font-mono border border-rose-500/20 hover:border-rose-500/40 px-2 py-1 rounded bg-rose-500/5 cursor-pointer"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                ))}
-                {eventRoles.length === 0 && (
-                  <p className="text-xs text-slate-500 italic py-2 text-center">
-                    Chưa có ai được phân quyền cho cuộc thi này.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Tải lên đề thi/tài liệu */}
-            <div className="glass p-6 rounded-2xl">
-              <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
-                <BookOpen size={16} className="text-indigo-400" />
-                <span>Đề bài & Tài liệu đính kèm</span>
-              </h3>
-
-              <form onSubmit={handleUploadExam} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                    Tên Tài liệu
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="E.g. Đề bài chung, Tài liệu API..."
-                    value={attachmentName}
-                    onChange={(e) => setAttachmentName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                    Đường dẫn / URL File
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="E.g. https://domain.com/exam.pdf"
-                    value={attachmentUrl}
-                    onChange={(e) => setAttachmentUrl(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-xs font-mono"
-                  />
-                </div>
-
-                <div className="p-3 bg-slate-900/40 border border-slate-800/80 rounded-xl text-[10px] text-slate-400">
-                  Tài liệu sẽ được hiển thị ở Bảng điều khiển của thí sinh thuộc
-                  bảng đấu đang chọn.
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg cursor-pointer font-mono"
-                >
-                  Tải Lên Tài Liệu
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      ) : (
-          /* GitHub Integration Tab */
-          <div className="glass p-6 rounded-2xl w-full mt-2 space-y-6 font-mono">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Github size={18} className="text-indigo-400" />
-              <span>Quản lý GitHub Repositories của các đội thi</span>
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* Repos List */}
-              <div className="lg:col-span-2 space-y-4">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Danh sách Repositories ({repos.length})</h4>
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                  {repos.map((r: any) => (
-                    <div key={r._id} className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-xs">
-                      <div className="space-y-1">
-                        <p className="font-bold text-slate-200">{r.teamId?.name || 'Đội thi'}</p>
-                        <a href={r.repoUrl} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline break-all block">{r.repoUrl || r.repoName}</a>
-                        <div className="flex gap-2 text-[10px] text-slate-400">
-                          <span>Mặc định: <span className="text-slate-300 font-semibold">{r.defaultBranch || 'main'}</span></span>
-                          <span>•</span>
-                          <span>Đồng bộ cuối: <span className="text-slate-300">{r.lastSyncedAt ? new Date(r.lastSyncedAt).toLocaleString() : 'Chưa đồng bộ'}</span></span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 self-end sm:self-auto">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          r.syncStatus === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                          r.syncStatus === 'syncing' ? 'bg-indigo-500/10 text-indigo-400 animate-pulse border border-indigo-500/20' :
-                          r.syncStatus === 'failed' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700/50'
-                        }`}>
-                          {r.syncStatus.toUpperCase()}
-                        </span>
-                        <button
-                          onClick={() => handleSyncRepo(r._id)}
-                          disabled={syncingRepoId === r._id}
-                          className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-850 text-white px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer disabled:cursor-not-allowed"
-                        >
-                          {syncingRepoId === r._id ? 'Đang sync...' : 'AI Sync'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {repos.length === 0 && <p className="text-xs text-slate-500 italic">Chưa có repository nào được cấu hình cho cuộc thi này.</p>}
-                </div>
-              </div>
-
-              {/* Provision or Link Repo */}
-              <div className="space-y-6">
-                {/* Auto Provision list */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Cấp Repo tự động</h4>
-                  <p className="text-[10px] text-slate-550">Tạo repo riêng tư trong tổ chức GitHub và phân quyền cho các thành viên đã xác nhận.</p>
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).map((t: any) => (
-                      <div key={t._id} className="bg-slate-900/30 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
-                        <span className="font-semibold text-slate-300 truncate max-w-[120px]">{t.name}</span>
-                        <button
-                          onClick={() => handleCreateRepo(t._id)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-lg text-[9px] font-bold cursor-pointer"
-                        >
-                          Tạo Repo
-                        </button>
-                      </div>
-                    ))}
-                    {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).length === 0 && (
-                      <p className="text-[10px] text-slate-500 italic">Tất cả đội confirmed đã được cấp repo.</p>
-                    )}
-                  </div>
-                </div>
-
-                <hr className="border-slate-800" />
-
-                {/* Manual Link Form */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Liên kết repo thủ công</h4>
-                  <form onSubmit={handleLinkRepo} className="space-y-2">
-                    <select
-                      value={linkingTeamId}
-                      onChange={e => setLinkingTeamId(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                    >
-                      <option value="">Chọn đội...</option>
-                      {allTeams.filter((t: any) => !repos.some((r: any) => r.teamId?._id === t._id)).map((t: any) => (
-                        <option key={t._id} value={t._id}>{t.name}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Tên Repo (e.g. team-alpha-repo)"
-                      value={manualRepoName}
-                      onChange={e => setManualRepoName(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                    />
-                    <input
-                      type="url"
-                      placeholder="Link Repo (https://github.com/...)"
-                      value={manualRepoUrl}
-                      onChange={e => setManualRepoUrl(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 rounded-lg text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                    />
-                    <button
-                      type="submit"
-                      className="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg cursor-pointer"
-                    >
-                      Liên kết Repo
-                    </button>
-                  </form>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        )}
+          {activeTab === "github" && (
+            <GithubTab
+              repos={repos}
+              allTeams={allTeams}
+              linkingTeamId={linkingTeamId}
+              setLinkingTeamId={setLinkingTeamId}
+              manualRepoName={manualRepoName}
+              setManualRepoName={setManualRepoName}
+              manualRepoUrl={manualRepoUrl}
+              setManualRepoUrl={setManualRepoUrl}
+              syncingRepoId={syncingRepoId}
+              handleCreateRepo={handleCreateRepo}
+              handleLinkRepo={handleLinkRepo}
+              handleSyncRepo={handleSyncRepo}
+            />
+          )}
       </div>
     )}
   </div>
