@@ -118,7 +118,7 @@ router.post('/team/:teamId/aggregate', authenticateToken, async (req, res) => {
       teamId: teamId,
       analysisType: 'repository_review', // maps to team_aggregate
       provider: 'Google Gemini',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.1-flash-lite',
       result: aggResult,
       status: 'completed',
       completedAt: new Date()

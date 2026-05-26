@@ -112,7 +112,7 @@ async function analyzeCommit(commit, files) {
         third_party_tools: ["TailwindCSS v4"]
       },
       inventory_exhaustive: {
-        llm_models_and_apis: ["gemini-1.5-flash", "openai-gpt-4o"],
+        llm_models_and_apis: ["gemini-3.1-flash-lite", "openai-gpt-4o"],
         frameworks_and_runtimes: ["react-19", "nodejs-20"],
         vector_databases: level !== "Basic" ? ["chromadb-0.4"] : [],
         agent_orchestration: level === "Agentic-RAG" ? ["langchain-core"] : [],
@@ -158,7 +158,7 @@ async function analyzeCommit(commit, files) {
   }
 
   try {
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
     const result = await model.generateContent(prompt);
     const textResponse = result.response.text().trim();
     
@@ -283,7 +283,7 @@ async function analyzeTeamAggregate(teamId, commits, priorReviews) {
   }
 
   try {
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
     const result = await model.generateContent(prompt);
     const textResponse = result.response.text().trim();
     const cleanedText = textResponse.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
