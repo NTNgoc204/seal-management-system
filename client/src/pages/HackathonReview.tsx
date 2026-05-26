@@ -344,7 +344,7 @@ export default function HackathonReview() {
 
                     <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-900/60 text-[10px]">
                       <span className="text-indigo-400 font-semibold bg-indigo-950/20 px-2 py-0.5 rounded">
-                        {r.result?.rag_maturity?.level || 'Basic'}
+                        {r.result?.rag_maturity?.level || 'Cơ bản'}
                       </span>
                       <span 
                         onClick={(e) => {
@@ -394,7 +394,7 @@ export default function HackathonReview() {
                   <div className="bg-slate-900/30 p-5 rounded-2xl border border-slate-800/80 space-y-4">
                     <div className="flex justify-between items-center text-[10px] text-slate-500">
                       <span>Commit {selectedReview.commitId?.commitSha?.substring(0, 8)} · Cập nhật {getSyncTimeElapsed(selectedReview.createdAt)}</span>
-                      <span className="text-indigo-400 font-bold bg-indigo-950/20 px-2 py-0.5 rounded">{selectedReview.result?.rag_maturity?.level || 'Basic'}</span>
+                      <span className="text-indigo-400 font-bold bg-indigo-950/20 px-2 py-0.5 rounded">{selectedReview.result?.rag_maturity?.level || 'Cơ bản'}</span>
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-[10px]">
@@ -692,10 +692,10 @@ export default function HackathonReview() {
                             <div key={code} className="bg-slate-900/30 p-4 rounded-xl border border-slate-800 text-xs flex justify-between gap-4">
                               <div className="space-y-1">
                                 <p className="font-bold text-slate-200">
-                                  {code === 'R1_01' ? 'Problem & Solution Suitability' :
-                                   code === 'R1_02' ? 'Data Pipeline' :
-                                   code === 'R1_03' ? 'Retrieval & Citation' :
-                                   code === 'R1_04' ? 'Intent & Prompting' : 'Presentation/Documentation'}
+                                  {code === 'R1_01' ? 'Độ phù hợp của Vấn đề & Giải pháp' :
+                                   code === 'R1_02' ? 'Đường dẫn Dữ liệu (Data Pipeline)' :
+                                   code === 'R1_03' ? 'Truy xuất & Trích dẫn (Retrieval & Citation)' :
+                                   code === 'R1_04' ? 'Ý đồ & Cấu trúc Prompt (Intent & Prompting)' : 'Thuyết trình / Tài liệu dự án'}
                                 </p>
                                 <p className="text-slate-400 leading-relaxed">{item.comment}</p>
                               </div>
@@ -728,10 +728,10 @@ export default function HackathonReview() {
                             <div key={code} className="bg-slate-900/30 p-4 rounded-xl border border-slate-800 text-xs flex justify-between gap-4">
                               <div className="space-y-1">
                                 <p className="font-bold text-slate-200">
-                                  {code === 'R2_01' ? 'Agent & Multi-hop' :
-                                   code === 'R2_02' ? 'Model Resources Management' :
-                                   code === 'R2_03' ? 'Production-grade Operations' :
-                                   code === 'R2_04' ? 'Extensibility/Creativity' : 'Defensibility/Q&A preparation'}
+                                  {code === 'R2_01' ? 'Tác tử & Truy vấn Multi-hop (Agent & Multi-hop)' :
+                                   code === 'R2_02' ? 'Quản lý Tài nguyên Mô hình' :
+                                   code === 'R2_03' ? 'Vận hành chuẩn Production (Production-grade)' :
+                                   code === 'R2_04' ? 'Khả năng mở rộng / Tính sáng tạo' : 'Khả năng bảo vệ giải pháp / Phản biện'}
                                 </p>
                                 <p className="text-slate-400 leading-relaxed">{item.comment}</p>
                               </div>

@@ -176,7 +176,7 @@ export default function RoundsTab({
           {tracks.length > 0 && (
             <div className="mb-4">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                Chọn Bảng đấu (Track):
+                Chọn Bảng đấu:
               </label>
               <select
                 value={selectedTrack?._id || ""}
@@ -352,14 +352,14 @@ export default function RoundsTab({
         {/* Round Selector */}
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-            Chọn Vòng Đấu (Round)
+            Chọn Vòng đấu
           </label>
           <select
             value={selectedRubricRoundId}
             onChange={(e) => setSelectedRubricRoundId(e.target.value)}
             className="w-full px-3 py-2.5 rounded-xl text-xs bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
           >
-            <option value="">-- Chọn Vòng Đấu --</option>
+            <option value="">-- Chọn Vòng đấu --</option>
             {rounds
               .filter((r: any) => r.trackId === selectedTrack?._id)
               .map((r: any) => (
@@ -427,7 +427,7 @@ export default function RoundsTab({
                     htmlFor="edit-rubric-active"
                     className="text-xs text-slate-300"
                   >
-                    Hoạt động (Active)
+                    Hoạt động
                   </label>
                 </div>
                 <div className="flex gap-2">

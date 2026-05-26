@@ -115,7 +115,7 @@ export default function GithubTab({
                     disabled={syncingRepoId === r._id}
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-850 text-white px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer disabled:cursor-not-allowed"
                   >
-                    {syncingRepoId === r._id ? "Đang sync..." : "AI Sync"}
+                    {syncingRepoId === r._id ? "Đang đồng bộ..." : "Đồng bộ AI"}
                   </button>
                 </div>
               </div>
@@ -162,7 +162,7 @@ export default function GithubTab({
                 (t: any) => !repos.some((r: any) => r.teamId?._id === t._id),
               ).length === 0 && (
                 <p className="text-[10px] text-slate-500 italic">
-                  Tất cả đội confirmed đã được cấp repo.
+                  Tất cả đội đã xác nhận đã được cấp repo.
                 </p>
               )}
             </div>

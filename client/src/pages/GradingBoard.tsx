@@ -334,14 +334,14 @@ export default function GradingBoard() {
         {rubric && (
           isRoundLocked ? (
             <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/5">
-              <Lock size={14} /> ROUND LOCKED & PUBLISHED
+              <Lock size={14} /> VÒNG THI ĐÃ KHOÁ & CÔNG BỐ
             </span>
           ) : (
             <button 
               onClick={handleLockRound}
               className="bg-indigo-600 hover:bg-indigo-500 text-xs font-bold px-4 py-2 rounded-xl text-white flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
             >
-              <Lock size={14} /> Lock & Publish Round
+              <Lock size={14} /> Khoá & Công bố Vòng thi
             </button>
           )
         )}
@@ -365,7 +365,7 @@ export default function GradingBoard() {
           <div className="lg:col-span-1 glass p-5 rounded-2xl space-y-4">
             <h3 className="text-sm font-bold text-slate-200 flex items-center gap-1.5">
               <Award size={16} className="text-indigo-400" />
-              <span>Đội thi confirmed ({teams.length})</span>
+              <span>Đội thi đã xác nhận ({teams.length})</span>
             </h3>
             
             <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
@@ -544,7 +544,7 @@ export default function GradingBoard() {
                   sidebarTab === 'ai' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                AI Insights
+                Phân tích AI
               </button>
             </div>
             
@@ -621,7 +621,7 @@ export default function GradingBoard() {
         <div className="glass p-12 text-center text-slate-400 flex flex-col items-center justify-center min-h-[350px]">
           <Lock size={48} className="text-slate-700 mb-3" />
           <p className="font-semibold text-lg">Rubric chưa được thiết lập hoặc chưa khoá</p>
-          <p className="text-sm text-slate-500 max-w-sm mt-1">Hệ thống chấm điểm sẽ được kích hoạt sau khi Người điều phối (Coordinator) thiết lập tiêu chí và khoá bảng Rubric của vòng đấu này.</p>
+          <p className="text-sm text-slate-500 max-w-sm mt-1">Hệ thống chấm điểm sẽ được kích hoạt sau khi Điều phối viên thiết lập tiêu chí và khoá bảng Rubric của vòng đấu này.</p>
         </div>
       )}
 

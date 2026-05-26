@@ -22,6 +22,7 @@
 }
 
 body {
+  font-family: var(--font-sans);
   background-color: #0a141d;
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),

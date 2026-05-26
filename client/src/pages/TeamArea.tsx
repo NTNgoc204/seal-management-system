@@ -23,6 +23,24 @@ const Github = ({ size = 20, className = "" }: { size?: number; className?: stri
 export default function TeamArea() {
   const token = localStorage.getItem('token');
   const [data, setData] = useState<any>(null);
+
+  const getTeamStatusText = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'confirmed': return 'ĐÃ XÁC NHẬN';
+      case 'pending_confirm': return 'ĐANG CHỜ DUYỆT';
+      default: return status?.toUpperCase() || '';
+    }
+  };
+
+  const getImpactText = (impact: string) => {
+    switch (impact?.toLowerCase()) {
+      case 'low': return 'Thấp';
+      case 'medium': return 'Trung bình';
+      case 'high': return 'Cao';
+      case 'critical': return 'Nghiêm trọng';
+      default: return impact || 'Thấp';
+    }
+  };
   
   // Topic Submission Form
   const [topicTitle, setTopicTitle] = useState('');
@@ -179,7 +197,7 @@ export default function TeamArea() {
           </span>
           <h1 className="text-3xl font-black text-white mt-2">{team?.name}</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Học kỳ: <span className="text-slate-300 font-bold">{team?.eventId?.name}</span> | Trạng thái: <span className="text-emerald-400 font-bold">{team?.status.toUpperCase()}</span>
+            Học kỳ: <span className="text-slate-300 font-bold">{team?.eventId?.name}</span> | Trạng thái: <span className="text-emerald-400 font-bold">{getTeamStatusText(team?.status)}</span>
           </p>
         </div>
 
@@ -278,11 +296,11 @@ export default function TeamArea() {
                   <div className="flex items-center gap-1">
                     {m.confirmStatus === 'confirmed' ? (
                       <span className="flex items-center gap-0.5 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold">
-                        <CheckCircle size={10} /> Confirmed
+                        <CheckCircle size={10} /> Đã xác nhận
                       </span>
                     ) : (
                       <span className="flex items-center gap-0.5 bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded text-[10px] font-bold">
-                        <Clock size={10} /> Pending
+                        <Clock size={10} /> Đang chờ
                       </span>
                     )}
                   </div>
@@ -347,7 +365,7 @@ export default function TeamArea() {
                       <div className="flex gap-3 text-[10px] pt-1">
                         <span className="text-emerald-400">+{selectedCommit.additions} dòng</span>
                         <span className="text-rose-400">-{selectedCommit.deletions} dòng</span>
-                        <span className="text-slate-400">{selectedCommit.changedFilesCount} files</span>
+                        <span className="text-slate-400">{selectedCommit.changedFilesCount} tệp</span>
                       </div>
                     </div>
 
@@ -371,7 +389,7 @@ export default function TeamArea() {
                             <div className="h-4 w-px bg-indigo-900"></div>
                             <div>
                               <span className="text-slate-400">Mức độ ảnh hưởng:</span>
-                              <span className="ml-1.5 font-bold text-emerald-400">{aiAnalysis.result?.impact || 'Low'}</span>
+                              <span className="ml-1.5 font-bold text-emerald-400">{getImpactText(aiAnalysis.result?.impact)}</span>
                             </div>
                           </div>
 
