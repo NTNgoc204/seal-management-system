@@ -12,6 +12,7 @@ import GradingBoard from './pages/GradingBoard';
 import Leaderboard from './pages/Leaderboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import HackathonReview from './pages/HackathonReview';
+import GuestPortal from './pages/GuestPortal';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -71,12 +72,30 @@ export default function App() {
         
         <main className="flex-1">
           <Routes>
-            <Route path="/" element={<LandingPage user={user} roles={roles} />} />
+            <Route path="/" element={
+              user ? (
+                user.isSystemAdmin || roles.some((r: any) => r.role === 'coordinator') ? (
+                  <Navigate to="/admin" />
+                ) : roles.some((r: any) => r.role === 'judge') ? (
+                  <Navigate to="/grading" />
+                ) : (
+                  <Navigate to="/guest-portal" />
+                )
+              ) : (
+                <LandingPage user={user} roles={roles} />
+              )
+            } />
             <Route path="/login" element={!user ? <Login onLoginSuccess={handleLoginSuccess} /> : <Navigate to="/" />} />
             
             <Route path="/register-team" element={
               <ProtectedRoute user={user} roles={roles} allowedRoles={['participant']}>
                 <RegisterTeam />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/guest-portal" element={
+              <ProtectedRoute user={user} roles={roles} allowedRoles={['participant']}>
+                <GuestPortal user={user} />
               </ProtectedRoute>
             } />
             

@@ -66,7 +66,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           } else if (roles && roles.some((r: any) => r.role === 'judge')) {
             navigate('/grading');
           } else {
-            navigate('/team-area');
+            navigate('/guest-portal');
           }
         } catch (err: any) {
           console.error(err);
@@ -119,7 +119,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       } else if (roles && roles.some((r: any) => r.role === 'judge')) {
         navigate('/grading');
       } else {
-        navigate('/team-area');
+        navigate('/guest-portal');
       }
     } catch (err: any) {
       console.error(err);
@@ -154,7 +154,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           if (user.isSystemAdmin || (roles && roles.some((r: any) => r.role === 'coordinator'))) {
             navigate('/admin');
           } else {
-            navigate('/team-area');
+            navigate('/guest-portal');
           }
         } else {
           setRegistrationSuccess(true);
@@ -173,7 +173,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         } else if (roles.some((r: any) => r.role === 'judge')) {
           navigate('/grading');
         } else {
-          navigate('/team-area');
+          navigate('/guest-portal');
         }
       }
     } catch (err: any) {

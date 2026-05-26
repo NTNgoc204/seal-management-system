@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Terminal, LogOut, Award, Users, ShieldAlert, GitBranch, BarChart2, Bell } from 'lucide-react';
+import { Terminal, LogOut, Award, Users, ShieldAlert, GitBranch, BarChart2, Bell, Compass } from 'lucide-react';
 
 interface NavbarProps {
   user: any;
@@ -96,6 +96,10 @@ export default function Navbar({ user, roles, onLogout }: NavbarProps) {
             {/* Participant Links */}
             {isParticipant && (
               <>
+                <Link to="/guest-portal" className={linkClass('/guest-portal')}>
+                  <Compass size={16} />
+                  <span>Guest Portal</span>
+                </Link>
                 <Link to="/register-team" className={linkClass('/register-team')}>
                   <Users size={16} />
                   <span>Đăng ký Đội</span>
