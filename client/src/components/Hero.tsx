@@ -11,7 +11,21 @@ export default function Hero({ user, roles }: HeroProps) {
   const dashboardLink = user ? (isSystemAdmin || isCoordinator ? '/admin' : '/team-area') : '/login';
 
   return (
-    <section className="relative min-h-[calc(100vh-80px)] flex items-center overflow-hidden py-12">
+    <section className="relative min-h-screen bg-black flex items-start overflow-hidden pt-8 pb-12">
+      {/* Background Video */}
+      <video
+        muted
+        autoPlay
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: 'center 60%' }}
+        src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4"
+      />
+      
+      {/* Dark overlay to ensure text readability */}
+      <div className="absolute inset-0 bg-black/40 z-[1]"></div>
+
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center relative z-10 w-full">
         
         {/* Left Intro Text */}
@@ -46,16 +60,7 @@ export default function Hero({ user, roles }: HeroProps) {
           </div>
         </div>
 
-        {/* Right Floating Tech Visual */}
-        <div className="relative group flex justify-center">
-          <div className="absolute inset-0 bg-primary-container/10 blur-[100px] rounded-full group-hover:bg-primary-container/20 transition-all duration-700 pointer-events-none"></div>
-          <img 
-            alt="Global Tech Hackathon Visual" 
-            className="relative z-10 w-full max-w-md h-auto drop-shadow-[0_0_40px_rgba(0,240,255,0.3)] animate-pulse" 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtuK-UXaQw64W3boFFDbFRfPYiq1TjQNct3lIUEiy_GIssBg1Ya0oRSnxMju2hlxlzp8jFigQWJ5TMT883Dw4uBlLCJYSICsp1cUYFc5gEnpFcfKHgiK_WiB3_0zA8xzUOHlY2pYJIhaBsndKQ_wH_-ytC4XQuplxbCbbcN1_025CrNFRBDXkwgYSVZXbOueHcSuX674iY8LLYZLvJmyvB1OB6SkegDyhabBsZJAwNig8zUSIPBVrCuZ20TrUEtyo8CYVj_gUAMGzC" 
-            style={{ animation: 'float 6s ease-in-out infinite' }}
-          />
-        </div>
+
 
       </div>
     </section>
