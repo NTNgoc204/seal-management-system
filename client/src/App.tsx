@@ -112,12 +112,12 @@ export default function App() {
             } />
             
             <Route path="/grading" element={
-              <ProtectedRoute user={user} roles={roles} allowedRoles={['judge']}>
-                <GradingBoard />
+              <ProtectedRoute user={user} roles={roles} allowedRoles={['judge', 'coordinator']}>
+                <GradingBoard user={user} roles={roles} />
               </ProtectedRoute>
             } />
             
-            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/leaderboard" element={user ? <Leaderboard user={user} roles={roles} /> : <Navigate to="/login" />} />
             <Route path="/hackathon-review" element={user ? <HackathonReview /> : <Navigate to="/login" />} />
           </Routes>
         </main>
