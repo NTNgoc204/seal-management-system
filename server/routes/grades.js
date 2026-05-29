@@ -393,6 +393,24 @@ router.post('/lock-round', authenticateToken, async (req, res) => {
     round.status = 'completed';
     await round.save();
 
+    // Gửi thông báo in-app tới toàn bộ thành viên trong bảng đấu
+    const Notification = mongoose.model('Notification');
+    const TeamMember = mongoose.model('TeamMember');
+
+    for (const team of teams) {
+      const members = await TeamMember.find({ teamId: team._id, confirmStatus: 'confirmed' });
+      for (const member of members) {
+        await new Notification({
+          userId: member.userId,
+          type: 'round_result',
+          title: `Kết quả vòng "${round.name}" đã công bố`,
+          body: `Vòng "${round.name}" đã hoàn tất chấm điểm và công bố kết quả. Hãy kiểm tra bảng xếp hạng ngay!`,
+          channel: 'in_app',
+          metadata: { roundId: round._id, roundName: round.name, eventId, trackId }
+        }).save();
+      }
+    }
+
     res.json({
       message: 'Round scores finalized, locked, and team rankings generated successfully!',
       rankings: rankingsToSave
