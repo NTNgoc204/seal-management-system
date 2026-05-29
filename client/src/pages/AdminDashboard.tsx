@@ -666,15 +666,18 @@ export default function AdminDashboard() {
       return;
     }
 
-    const payload = {
+    const payload: any = {
       code: critCode.trim().toUpperCase(),
       name: critName.trim(),
       description: critDesc.trim(),
       weight: parsedWeight,
       maxScore: parsedMaxScore,
-      order: isNaN(parsedOrder) ? undefined : parsedOrder,
       gradingLevels: critGradingLevels
     };
+
+    if (editingCriterion) {
+      payload.order = isNaN(parsedOrder) ? undefined : parsedOrder;
+    }
 
     try {
       if (editingCriterion) {
@@ -1367,8 +1370,6 @@ export default function AdminDashboard() {
               setCritDesc={setCritDesc}
               critMaxScore={critMaxScore}
               setCritMaxScore={setCritMaxScore}
-              critOrder={critOrder}
-              setCritOrder={setCritOrder}
               critGradingLevels={critGradingLevels}
               setCritGradingLevels={setCritGradingLevels}
               editingCriterion={editingCriterion}
