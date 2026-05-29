@@ -311,13 +311,14 @@ async function runTests() {
 
   // 17. Retrieve Leaderboard and Verify
   console.log('\n[Step 17] Querying Leaderboard standings...');
-  const leaderboard = await get(`/grades/leaderboard/${roundId}`, leaderToken);
+  const leaderboardResult = await get(`/grades/leaderboard/${roundId}`, leaderToken);
+  const standings = leaderboardResult.standings || [];
   console.log('Leaderboard Standings:');
-  leaderboard.forEach(row => {
+  standings.forEach(row => {
     console.log(`Rank ${row.rank} | Team: "${row.teamId.name}" | Score: ${row.averageScore} | Advanced: ${row.isAdvanced}`);
   });
 
-  if (leaderboard.length > 0 && leaderboard[0].teamId.name === 'Dev Rangers' && leaderboard[0].rank === 1) {
+  if (standings.length > 0 && standings[0].teamId.name === 'Dev Rangers' && standings[0].rank === 1) {
     console.log('\n======================================================');
     console.log('✅ ALL INTEGRATION SCENARIO TESTS PASSED SUCCESSFULLY! ✅');
     console.log('======================================================');

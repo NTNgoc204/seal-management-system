@@ -370,6 +370,11 @@ router.post('/:eventId/distribute-teams', authenticateToken, async (req, res) =>
       if (!coordinatorRole) return res.status(403).json({ message: 'Unauthorized. Coordinator or Admin role required.' });
     }
 
+    // Fetch Event to get org name
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Không tìm thấy sự kiện.' });
+    const orgName = event ? event.githubOrgName : undefined;
+
     // 2. Fetch tracks
     const tracks = await Track.find({ eventId });
     if (tracks.length === 0) {
@@ -407,15 +412,18 @@ router.post('/:eventId/distribute-teams', authenticateToken, async (req, res) =>
       // Trigger GitHub Repo creation in the background
       const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
       
-      githubService.createTeamRepository(slugRepoName, 'private')
+      githubService.createTeamRepository(slugRepoName, 'private', orgName)
         .then(async (gitResult) => {
           // Check if repo already exists for this team
           const existingRepo = await GithubRepository.findOne({ teamId: team._id });
           if (!existingRepo) {
+            const actualOrgName = gitResult.owner || orgName;
+
             const newRepo = new GithubRepository({
               eventId: team.eventId,
               trackId: track._id,
               teamId: team._id,
+              orgName: actualOrgName,
               repoName: slugRepoName,
               repoUrl: gitResult.repoUrl,
               githubRepoId: gitResult.githubRepoId,
@@ -427,7 +435,7 @@ router.post('/:eventId/distribute-teams', authenticateToken, async (req, res) =>
             const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
             for (const tm of populatedMembers) {
               if (tm.userId && tm.userId.githubUsername) {
-                await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+                await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername, 'push', actualOrgName);
               }
             }
             console.log(`[DISTRIBUTION] Provisioned GitHub repo and added collaborators for team: ${team.name}`);
