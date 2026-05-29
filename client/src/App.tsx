@@ -16,6 +16,7 @@ import JudgeDashboard from './pages/JudgeDashboard';
 import JudgeProjects from './pages/JudgeProjects';
 import JudgeScoring from './pages/JudgeScoring';
 import JudgeTeamActivity from './pages/JudgeTeamActivity';
+import AdminGradesView from './pages/AdminGradesView';
 
 function AppContent({ user, roles, handleLoginSuccess, handleLogout }: any) {
   const location = useLocation();
@@ -71,6 +72,12 @@ function AppContent({ user, roles, handleLoginSuccess, handleLogout }: any) {
               <AdminDashboard defaultTab="events" />
             </ProtectedRoute>
           } />
+
+          <Route path="/admin/grades" element={
+            <ProtectedRoute user={user} roles={roles} allowedRoles={['coordinator']}>
+              <AdminGradesView />
+            </ProtectedRoute>
+          } />
           
           {/* Judge Sub-Routes under JudgeLayout */}
           <Route path="/judge" element={
@@ -85,7 +92,7 @@ function AppContent({ user, roles, handleLoginSuccess, handleLogout }: any) {
             <Route path="activity/:teamId" element={<JudgeTeamActivity />} />
           </Route>
           
-          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/leaderboard" element={<Leaderboard user={user} roles={roles} />} />
         </Routes>
       </main>
 

@@ -76,7 +76,7 @@ export default function Leaderboard({
     }
     setLoading(true);
     try {
-      if (isCoordinator) {
+      if (isCoordinator && selectedRound?.status !== "completed") {
         // Coordinator: use live-ranking for real-time view
         const res = await axios.get(
           `http://localhost:5000/api/grades/live-ranking/${selectedRoundId}`,
@@ -87,7 +87,7 @@ export default function Leaderboard({
         setIsLocked(false);
         setLockedMessage("");
       } else {
-        // Non-coordinator: use normal leaderboard (blocked if round not completed)
+        // Non-coordinator or completed round: use normal leaderboard
         const res = await axios.get(
           `http://localhost:5000/api/grades/leaderboard/${selectedRoundId}`,
           { headers: { Authorization: `Bearer ${token}` } },
@@ -110,7 +110,7 @@ export default function Leaderboard({
     } finally {
       setLoading(false);
     }
-  }, [selectedRoundId, isCoordinator, token]);
+  }, [selectedRoundId, isCoordinator, token, selectedRound]);
 
   useEffect(() => {
     fetchRankings();
@@ -158,17 +158,7 @@ export default function Leaderboard({
             </span>
           )}
 
-          {/* Role badge */}
-          {isCoordinator ? (
-            <span className="flex items-center gap-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-bold">
-              <Users size={12} />
-              Điều phối viên
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold">
-              Thành viên đội thi
-            </span>
-          )}
+
 
           {/* Manual refresh for coordinator */}
           {isCoordinator && (
@@ -300,15 +290,10 @@ export default function Leaderboard({
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
-                  <th className="py-4 px-4 w-16 text-center">Thứ Hạng</th>
-                  <th className="py-4 px-4">Tên Đội Thi</th>
-                  <th className="py-4 px-4">Đề Tài Dự Án</th>
-                  <th className="py-4 px-4 text-center">Giám Khảo</th>
-                  <th className="py-4 px-4 text-center">Điểm Trung Bình</th>
-                  {isCoordinator && isLive && (
-                    <th className="py-4 px-4 text-center">Chi tiết điểm BGK</th>
-                  )}
-                  <th className="py-4 px-4 text-center">Trạng Thái</th>
+                  <th className="py-4 px-4 w-[15%] text-center">Thứ Hạng</th>
+                  <th className="py-4 px-4 w-[45%]">Tên Đội Thi</th>
+                  <th className="py-4 px-4 w-[20%] text-center">Điểm Trung Bình</th>
+                  <th className="py-4 px-4 w-[20%] text-center">Trạng Thái</th>
                 </tr>
               </thead>
               <tbody>
@@ -343,13 +328,7 @@ export default function Leaderboard({
                       <td className="py-4 px-4 font-bold text-slate-100 text-sm">
                         {row.teamId?.name}
                       </td>
-                      <td className="py-4 px-4 text-slate-300 max-w-xs truncate">
-                        {row.teamId?.topicSubmission?.title ||
-                          "Chưa nộp đề tài"}
-                      </td>
-                      <td className="py-4 px-4 text-center font-medium text-slate-300">
-                        {row.judgeCount} BGK
-                      </td>
+
                       <td className="py-4 px-4 text-center font-black text-indigo-400 text-sm">
                         {row.averageScore != null
                           ? row.averageScore.toFixed(2)
@@ -361,30 +340,7 @@ export default function Leaderboard({
                         )}
                       </td>
 
-                      {/* Coordinator-only: breakdown per judge */}
-                      {isCoordinator && isLive && (
-                        <td className="py-4 px-4 text-center">
-                          {row.judges && row.judges.length > 0 ? (
-                            <div className="flex flex-col gap-1 items-center">
-                              {row.judges.map((j: any, ji: number) => (
-                                <span
-                                  key={ji}
-                                  className="text-[9px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-300 whitespace-nowrap"
-                                >
-                                  {j.fullName || `GK ${ji + 1}`}:{" "}
-                                  <span className="text-indigo-400 font-bold">
-                                    {j.score?.toFixed(2)}
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-[9px] text-slate-600 italic">
-                              Chưa có
-                            </span>
-                          )}
-                        </td>
-                      )}
+
 
                       <td className="py-4 px-4 text-center">
                         {selectedRound?.status !==
