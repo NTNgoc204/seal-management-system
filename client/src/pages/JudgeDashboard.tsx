@@ -1,42 +1,38 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { 
-  Timer, 
-  Activity, 
-  Play, 
-  ArrowRight
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { Timer, Activity, Play, ArrowRight } from "lucide-react";
 
 export default function JudgeDashboard() {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
   const [events, setEvents] = useState<any[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState('');
+  const [selectedEventId, setSelectedEventId] = useState("");
   const [rounds, setRounds] = useState<any[]>([]);
-  const [selectedRoundId, setSelectedRoundId] = useState('');
-  
+  const [selectedRoundId, setSelectedRoundId] = useState("");
+
   const [teams, setTeams] = useState<any[]>([]);
   const [lastGradedTeamId, setLastGradedTeamId] = useState<string | null>(null);
-  const [lastGradedTeamName, setLastGradedTeamName] = useState<string>('');
+  const [lastGradedTeamName, setLastGradedTeamName] = useState<string>("");
 
   const [stats, setStats] = useState({
     activeTeamsCount: 0,
     perPushCount: 0,
     totalRecords: 0,
-    lastSyncTime: ''
+    lastSyncTime: "",
   });
 
   const [allCommits, setAllCommits] = useState<any[]>([]);
   const [commitsLoading, setCommitsLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState('00:00:00');
+  const [timeLeft, setTimeLeft] = useState("00:00:00");
 
   const currentRound = rounds.find((r: any) => r._id === selectedRoundId);
 
   // Fetch events
   useEffect(() => {
-    axios.get('http://localhost:5000/api/events')
+    axios
+      .get("http://localhost:5000/api/events")
       .then((res: any) => {
         setEvents(res.data);
         if (res.data.length > 0) {
@@ -49,7 +45,8 @@ export default function JudgeDashboard() {
   // Fetch event details (rounds)
   useEffect(() => {
     if (!selectedEventId) return;
-    axios.get(`http://localhost:5000/api/events/${selectedEventId}`)
+    axios
+      .get(`http://localhost:5000/api/events/${selectedEventId}`)
       .then((res: any) => {
         setRounds(res.data.rounds || []);
         if (res.data.rounds && res.data.rounds.length > 0) {
@@ -61,36 +58,41 @@ export default function JudgeDashboard() {
 
   // Fetch AI stats
   useEffect(() => {
-    axios.get('http://localhost:5000/api/ai-analyses/stats', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    axios
+      .get("http://localhost:5000/api/ai-analyses/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       .then((res: any) => {
         setStats(res.data);
       })
-      .catch((err: any) => console.error('Error fetching stats:', err));
+      .catch((err: any) => console.error("Error fetching stats:", err));
   }, [token]);
 
   // Fetch Teams and find last graded team
   useEffect(() => {
     if (!selectedEventId) return;
-    axios.get(`http://localhost:5000/api/teams/all/${selectedEventId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    axios
+      .get(`http://localhost:5000/api/teams/all/${selectedEventId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       .then(async (res: any) => {
-        const confirmed = res.data.filter((t: any) => t.status === 'confirmed');
+        const confirmed = res.data.filter((t: any) => t.status === "confirmed");
         setTeams(confirmed);
-        
+
         if (confirmed.length > 0) {
           // Default last graded team to the first team
           setLastGradedTeamId(confirmed[0]._id);
           setLastGradedTeamName(confirmed[0].name);
-          
+
           // Let's check which team was actually recently graded
           for (const team of confirmed) {
             try {
-              const gradeRes = await axios.get(`http://localhost:5000/api/grades/team/${team._id}/round/${selectedRoundId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
+              const gradeRes = await axios.get(
+                `http://localhost:5000/api/grades/team/${team._id}/round/${selectedRoundId}`,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
               if (gradeRes.data && gradeRes.data.score) {
                 setLastGradedTeamId(team._id);
                 setLastGradedTeamName(team.name);
@@ -118,24 +120,30 @@ export default function JudgeDashboard() {
       await Promise.all(
         teams.map(async (team) => {
           try {
-            const res = await axios.get(`http://localhost:5000/api/analytics/team/${team._id}/commits`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axios.get(
+              `http://localhost:5000/api/analytics/team/${team._id}/commits`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+            );
             if (Array.isArray(res.data)) {
-              const commitsWithTeam = res.data.map(c => ({
+              const commitsWithTeam = res.data.map((c) => ({
                 ...c,
                 teamName: team.name,
-                teamId: team._id
+                teamId: team._id,
               }));
               commitList.push(...commitsWithTeam);
             }
           } catch (err) {
-            console.error('Failed to fetch commits for team:', team.name, err);
+            console.error("Failed to fetch commits for team:", team.name, err);
           }
-        })
+        }),
       );
-      
-      commitList.sort((a, b) => new Date(b.committedAt).getTime() - new Date(a.committedAt).getTime());
+
+      commitList.sort(
+        (a, b) =>
+          new Date(b.committedAt).getTime() - new Date(a.committedAt).getTime(),
+      );
       setAllCommits(commitList);
       setAllCommits(commitList);
       setCommitsLoading(false);
@@ -147,26 +155,30 @@ export default function JudgeDashboard() {
   // Countdown timer
   useEffect(() => {
     if (!currentRound?.submissionDeadline) {
-      setTimeLeft('CHƯA CÓ HẠN');
+      setTimeLeft("CHƯA CÓ HẠN");
       return;
     }
     const interval = setInterval(() => {
-      const diff = new Date(currentRound.submissionDeadline).getTime() - new Date().getTime();
+      const diff =
+        new Date(currentRound.submissionDeadline).getTime() -
+        new Date().getTime();
       if (diff <= 0) {
-        setTimeLeft('ĐÃ HẾT HẠN');
+        setTimeLeft("ĐÃ HẾT HẠN");
         clearInterval(interval);
       } else {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        setTimeLeft(
+          `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
+        );
       }
     }, 1000);
     return () => clearInterval(interval);
   }, [currentRound]);
 
   const getSyncTimeElapsed = (dateStr: string) => {
-    if (!dateStr) return 'Chưa có hoạt động';
+    if (!dateStr) return "Chưa có hoạt động";
     const diffMs = Date.now() - new Date(dateStr).getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     if (diffDays > 0) return `${diffDays} ngày trước`;
@@ -181,8 +193,13 @@ export default function JudgeDashboard() {
       {/* Page Title & Countdown Area */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Tổng quan (Overview)</h2>
-          <p className="text-slate-500 text-xs mt-1">Theo dõi tiến độ chấm điểm và cập nhật Git thời gian thực của các đội thi.</p>
+          <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+            Tổng quan
+          </h2>
+          <p className="text-slate-500 text-xs mt-1">
+            Theo dõi tiến độ chấm điểm và cập nhật Git thời gian thực của các
+            đội thi.
+          </p>
         </div>
 
         {/* Countdown Badge */}
@@ -191,8 +208,12 @@ export default function JudgeDashboard() {
             <Timer className="text-rose-500" size={20} />
           </div>
           <div>
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Thời gian chấm còn lại</p>
-            <p className="text-xl font-bold text-slate-800 font-mono tracking-wider">{timeLeft}</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+              Thời gian chấm còn lại
+            </p>
+            <p className="text-xl font-bold text-slate-800 font-mono tracking-wider">
+              {timeLeft}
+            </p>
           </div>
         </div>
       </div>
@@ -200,27 +221,35 @@ export default function JudgeDashboard() {
       {/* Selectors Row */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
         <div>
-          <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">Cuộc thi</label>
+          <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">
+            Cuộc thi
+          </label>
           <select
             value={selectedEventId}
-            onChange={e => setSelectedEventId(e.target.value)}
+            onChange={(e) => setSelectedEventId(e.target.value)}
             className="bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-56 font-bold"
           >
             {events.map((e: any) => (
-              <option key={e._id} value={e._id}>{e.name}</option>
+              <option key={e._id} value={e._id}>
+                {e.name}
+              </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">Vòng thi</label>
+          <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">
+            Vòng thi
+          </label>
           <select
             value={selectedRoundId}
-            onChange={e => setSelectedRoundId(e.target.value)}
+            onChange={(e) => setSelectedRoundId(e.target.value)}
             className="bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-56 font-bold"
           >
             {rounds.map((r: any) => (
-              <option key={r._id} value={r._id}>{r.name} (Lấy Top {r.advanceTopN})</option>
+              <option key={r._id} value={r._id}>
+                {r.name} (Lấy Top {r.advanceTopN})
+              </option>
             ))}
             {rounds.length === 0 && <option>Không có vòng thi</option>}
           </select>
@@ -230,29 +259,53 @@ export default function JudgeDashboard() {
       {/* Bento Grid Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white border border-slate-200 rounded-xl p-5 border-l-4 border-l-blue-600 shadow-sm hover:shadow-md transition-all">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tổng số đội thi</p>
-          <p className="text-3xl font-black text-slate-900 mt-2 font-mono">{stats.activeTeamsCount || teams.length}</p>
-          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">Tham gia sự kiện</p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+            Tổng số đội thi
+          </p>
+          <p className="text-3xl font-black text-slate-900 mt-2 font-mono">
+            {stats.activeTeamsCount || teams.length}
+          </p>
+          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">
+            Tham gia sự kiện
+          </p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5 border-l-4 border-l-emerald-600 shadow-sm hover:shadow-md transition-all">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Push Per-Push (Đã tải)</p>
-          <p className="text-3xl font-black text-slate-900 mt-2 font-mono">{stats.perPushCount || allCommits.length}</p>
-          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">Đồng bộ từ webhook</p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+            Push Per-Push (Đã tải)
+          </p>
+          <p className="text-3xl font-black text-slate-900 mt-2 font-mono">
+            {stats.perPushCount || allCommits.length}
+          </p>
+          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">
+            Đồng bộ từ webhook
+          </p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5 border-l-4 border-l-indigo-600 shadow-sm hover:shadow-md transition-all">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Hoạt động code gần nhất</p>
-          <p className="text-sm font-bold text-slate-900 mt-4 font-mono truncate">
-            {stats.lastSyncTime ? new Date(stats.lastSyncTime).toLocaleString('vi-VN') : 'Chưa cập nhật'}
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+            Hoạt động code gần nhất
           </p>
-          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">{getSyncTimeElapsed(stats.lastSyncTime)}</p>
+          <p className="text-sm font-bold text-slate-900 mt-4 font-mono truncate">
+            {stats.lastSyncTime
+              ? new Date(stats.lastSyncTime).toLocaleString("vi-VN")
+              : "Chưa cập nhật"}
+          </p>
+          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">
+            {getSyncTimeElapsed(stats.lastSyncTime)}
+          </p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5 border-l-4 border-l-purple-600 shadow-sm hover:shadow-md transition-all">
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tổng bản ghi đã tải</p>
-          <p className="text-3xl font-black text-slate-900 mt-2 font-mono">{stats.totalRecords || 215}</p>
-          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">Tối đa 1000 bản ghi</p>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+            Tổng bản ghi đã tải
+          </p>
+          <p className="text-3xl font-black text-slate-900 mt-2 font-mono">
+            {stats.totalRecords || 215}
+          </p>
+          <p className="text-[9px] text-slate-400 mt-1 uppercase font-semibold">
+            Tối đa 1000 bản ghi
+          </p>
         </div>
       </div>
 
@@ -264,9 +317,14 @@ export default function JudgeDashboard() {
               <Play size={20} className="fill-blue-600 animate-pulse ml-0.5" />
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Tiếp tục phiên làm việc</h3>
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">
+                Tiếp tục phiên làm việc
+              </h3>
               <p className="text-xs text-slate-600 mt-0.5">
-                Tiếp tục xem chi tiết và chấm điểm cho đội thi: <strong className="text-blue-600 font-bold">"{lastGradedTeamName}"</strong>
+                Tiếp tục xem chi tiết và chấm điểm cho đội thi:{" "}
+                <strong className="text-blue-600 font-bold">
+                  "{lastGradedTeamName}"
+                </strong>
               </p>
             </div>
           </div>
@@ -286,8 +344,8 @@ export default function JudgeDashboard() {
             <Activity size={14} className="text-blue-600" />
             <span>Hoạt động Git gần nhất từ các đội ({allCommits.length})</span>
           </h3>
-          <button 
-            onClick={() => navigate('/judge/projects')} 
+          <button
+            onClick={() => navigate("/judge/projects")}
             className="text-blue-600 hover:text-blue-700 font-bold text-[10px] uppercase tracking-wider transition-colors"
           >
             Xem tất cả dự án &rarr;
@@ -301,8 +359,8 @@ export default function JudgeDashboard() {
             </div>
           ) : allCommits.length > 0 ? (
             allCommits.slice(0, 10).map((c, idx) => (
-              <div 
-                key={c._id || idx} 
+              <div
+                key={c._id || idx}
                 className="bg-slate-50/40 border border-slate-100 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-slate-200 hover:bg-slate-50/80 transition-all"
               >
                 <div className="space-y-1.5 flex-1 min-w-0">
@@ -314,16 +372,22 @@ export default function JudgeDashboard() {
                       @{c.authorGithubUsername || c.authorName}
                     </span>
                     <span className="text-[9px] text-slate-400 font-mono">
-                      [{c.commitSha?.slice(0, 8) || 'sha'}]
+                      [{c.commitSha?.slice(0, 8) || "sha"}]
                     </span>
                     <span className="text-[9px] text-slate-400">
                       {getSyncTimeElapsed(c.committedAt)}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-700 font-mono leading-relaxed truncate">{c.message}</p>
+                  <p className="text-xs text-slate-700 font-mono leading-relaxed truncate">
+                    {c.message}
+                  </p>
                   <div className="flex items-center gap-3 text-[9px] text-slate-500 font-mono">
-                    <span className="text-emerald-600 font-bold">+{c.additions} lines</span>
-                    <span className="text-rose-600 font-bold">-{c.deletions} lines</span>
+                    <span className="text-emerald-600 font-bold">
+                      +{c.additions} lines
+                    </span>
+                    <span className="text-rose-600 font-bold">
+                      -{c.deletions} lines
+                    </span>
                   </div>
                 </div>
 
