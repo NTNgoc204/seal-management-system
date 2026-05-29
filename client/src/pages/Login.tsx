@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck } from 'lucide-react';
+import logo from "../assets/logo.svg";
 
 const Github = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
   <svg
@@ -198,7 +199,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <img 
               alt="SEAL Hackathon Logo" 
               className="w-full h-full object-contain rounded-full logo-glow drop-shadow-[0_0_20px_rgba(0,240,255,0.6)]" 
-              src="https://lh3.googleusercontent.com/aida/ADBb0ujijblMHWmiBodnzGgcfB7u7EiN0US6CunNVACp9z1m9Bt40l554VgXUfaUBJrxb7qG2EYB-rrKMBuEOeOjZVfKDrr6Op31S1Wu2TxyC-jdYc4wPP8yMVL6TCay4qe54bHg_HSh18Isk5grPw84zb6qJwialtdkb-E-xP2Cy6t-TpnMnysiicR1ugcklLKsHo73UptBGwh7zFFCMlfybrHnmjrh514W01DyL2z0Cm9CRPNSHR3SIo1fdLIl"
+              src={logo}
             />
           </div>
 
@@ -252,7 +253,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <img 
               alt="SEAL Hackathon Logo" 
               className="w-full h-full object-contain rounded-full logo-glow drop-shadow-[0_0_20px_rgba(0,240,255,0.6)]" 
-              src="https://lh3.googleusercontent.com/aida/ADBb0ujijblMHWmiBodnzGgcfB7u7EiN0US6CunNVACp9z1m9Bt40l554VgXUfaUBJrxb7qG2EYB-rrKMBuEOeOjZVfKDrr6Op31S1Wu2TxyC-jdYc4wPP8yMVL6TCay4qe54bHg_HSh18Isk5grPw84zb6qJwialtdkb-E-xP2Cy6t-TpnMnysiicR1ugcklLKsHo73UptBGwh7zFFCMlfybrHnmjrh514W01DyL2z0Cm9CRPNSHR3SIo1fdLIl"
+              src={logo}
             />
           </div>
           <div className="chip font-mono text-xs text-primary-container mb-3 bg-[#0a141d]/50">
