@@ -162,11 +162,13 @@ router.post('/register', authenticateToken, async (req, res) => {
       const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
       const gitResult = await githubService.createTeamRepository(slugRepoName, 'private', orgName);
       
+      const actualOrgName = gitResult.owner || orgName;
+
       const newRepo = new GithubRepository({
         eventId: team.eventId,
         trackId: team.trackId,
         teamId: team._id,
-        orgName: orgName,
+        orgName: actualOrgName,
         repoName: slugRepoName,
         repoUrl: gitResult.repoUrl,
         githubRepoId: gitResult.githubRepoId,
@@ -176,7 +178,7 @@ router.post('/register', authenticateToken, async (req, res) => {
 
       // Invite collaborators (the leader)
       if (req.user.githubUsername) {
-        await githubService.addCollaborator(slugRepoName, req.user.githubUsername, 'push', orgName);
+        await githubService.addCollaborator(slugRepoName, req.user.githubUsername, 'push', actualOrgName);
       }
 
       // Check capacity
@@ -260,37 +262,37 @@ router.get('/confirm-invite', async (req, res) => {
 
       console.log(`[TEAM] Team "${team.name}" is now FULLY CONFIRMED! Creating repo...`);
 
-      // 1. Automatically create Github Repository only if trackId is assigned
+      // 1. Automatically create Github Repository
       const event = await Event.findById(team.eventId);
       const orgName = event ? event.githubOrgName : undefined;
       const slugRepoName = team.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
       const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
 
-      if (team.trackId) {
-        try {
-          const gitResult = await githubService.createTeamRepository(slugRepoName, 'private', orgName);
-          
-          const newRepo = new GithubRepository({
-            eventId: team.eventId,
-            trackId: team.trackId,
-            teamId: team._id,
-            orgName: orgName,
-            repoName: slugRepoName,
-            repoUrl: gitResult.repoUrl,
-            githubRepoId: gitResult.githubRepoId,
-            syncStatus: 'not_synced'
-          });
-          await newRepo.save();
+      try {
+        const gitResult = await githubService.createTeamRepository(slugRepoName, 'private', orgName);
+        
+        const actualOrgName = gitResult.owner || orgName;
 
-          // 2. Add collaborators
-          for (const tm of populatedMembers) {
-            if (tm.userId && tm.userId.githubUsername) {
-              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername, 'push', orgName);
-            }
+        const newRepo = new GithubRepository({
+          eventId: team.eventId,
+          trackId: team.trackId,
+          teamId: team._id,
+          orgName: actualOrgName,
+          repoName: slugRepoName,
+          repoUrl: gitResult.repoUrl,
+          githubRepoId: gitResult.githubRepoId,
+          syncStatus: 'not_synced'
+        });
+        await newRepo.save();
+
+        // 2. Add collaborators
+        for (const tm of populatedMembers) {
+          if (tm.userId && tm.userId.githubUsername) {
+            await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername, 'push', actualOrgName);
           }
-        } catch (gitErr) {
-          console.error('Lỗi tự động tạo repo GitHub:', gitErr.message);
         }
+      } catch (gitErr) {
+        console.error('Lỗi tự động tạo repo GitHub:', gitErr.message);
       }
 
       // 3. Auto capacity checking and close form logic
@@ -484,6 +486,9 @@ router.put('/:teamId/assign-track', authenticateToken, async (req, res) => {
     const track = await Track.findById(targetTrackId);
     if (!track) return res.status(404).json({ message: 'Bảng đấu không tồn tại.' });
 
+    const event = await Event.findById(team.eventId);
+    const orgName = event ? event.githubOrgName : undefined;
+
     team.trackId = track._id;
     await team.save();
 
@@ -493,12 +498,15 @@ router.put('/:teamId/assign-track', authenticateToken, async (req, res) => {
     // Check if repo already exists for this team
     const existingRepo = await GithubRepository.findOne({ teamId: team._id });
     if (!existingRepo) {
-      githubService.createTeamRepository(slugRepoName, 'private')
+      githubService.createTeamRepository(slugRepoName, 'private', orgName)
         .then(async (gitResult) => {
+          const actualOrgName = gitResult.owner || orgName;
+          
           const newRepo = new GithubRepository({
             eventId: team.eventId,
             trackId: track._id,
             teamId: team._id,
+            orgName: actualOrgName,
             repoName: slugRepoName,
             repoUrl: gitResult.repoUrl,
             githubRepoId: gitResult.githubRepoId,
@@ -509,7 +517,7 @@ router.put('/:teamId/assign-track', authenticateToken, async (req, res) => {
           const populatedMembers = await TeamMember.find({ teamId: team._id }).populate('userId');
           for (const tm of populatedMembers) {
             if (tm.userId && tm.userId.githubUsername) {
-              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername);
+              await githubService.addCollaborator(slugRepoName, tm.userId.githubUsername, 'push', actualOrgName);
             }
           }
           console.log(`[ASSIGN TRACK] Provisioned GitHub repo and added collaborators for team: ${team.name}`);

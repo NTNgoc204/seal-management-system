@@ -422,23 +422,18 @@ async function runTests() {
   );
 
   // 17. Retrieve Leaderboard and Verify
-  console.log("\n[Step 17] Querying Leaderboard standings...");
-  const leaderboard = await get(`/grades/leaderboard/${roundId}`, leaderToken);
-  console.log("Leaderboard Standings:");
-  leaderboard.forEach((row) => {
-    console.log(
-      `Rank ${row.rank} | Team: "${row.teamId.name}" | Score: ${row.averageScore} | Advanced: ${row.isAdvanced}`,
-    );
+  console.log('\n[Step 17] Querying Leaderboard standings...');
+  const leaderboardResult = await get(`/grades/leaderboard/${roundId}`, leaderToken);
+  const standings = leaderboardResult.standings || [];
+  console.log('Leaderboard Standings:');
+  standings.forEach(row => {
+    console.log(`Rank ${row.rank} | Team: "${row.teamId.name}" | Score: ${row.averageScore} | Advanced: ${row.isAdvanced}`);
   });
 
-  if (
-    leaderboard.length > 0 &&
-    leaderboard[0].teamId.name === "Dev Rangers" &&
-    leaderboard[0].rank === 1
-  ) {
-    console.log("\n======================================================");
-    console.log("✅ ALL INTEGRATION SCENARIO TESTS PASSED SUCCESSFULLY! ✅");
-    console.log("======================================================");
+  if (standings.length > 0 && standings[0].teamId.name === 'Dev Rangers' && standings[0].rank === 1) {
+    console.log('\n======================================================');
+    console.log('✅ ALL INTEGRATION SCENARIO TESTS PASSED SUCCESSFULLY! ✅');
+    console.log('======================================================');
   } else {
     throw new Error("Leaderboard mismatch: Rank 1 is not Dev Rangers.");
   }
