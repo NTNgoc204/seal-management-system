@@ -16,7 +16,21 @@ export default function Hero({ user, roles }: HeroProps) {
     : "/login";
 
   return (
-    <section className="relative min-h-[calc(100vh-80px)] flex items-center overflow-hidden py-12">
+    <section className="relative min-h-screen bg-black flex items-start overflow-hidden pt-8 pb-12">
+      {/* Background Video */}
+      <video
+        muted
+        autoPlay
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: 'center 60%' }}
+        src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4"
+      />
+      
+      {/* Dark overlay to ensure text readability */}
+      <div className="absolute inset-0 bg-black/40 z-[1]"></div>
+
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center relative z-10 w-full">
         {/* Left Intro Text */}
         <div className="space-y-6 text-center md:text-left">

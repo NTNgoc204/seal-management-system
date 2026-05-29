@@ -229,6 +229,12 @@ router.post("/rubric/:rubricId", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: levelsCheck.message });
     }
 
+    let finalOrder = order !== undefined ? parseInt(order, 10) : undefined;
+    if (finalOrder === undefined || isNaN(finalOrder)) {
+      const maxCrit = await Criterion.findOne({ rubricId: rubric._id }).sort({ order: -1 });
+      finalOrder = maxCrit && typeof maxCrit.order === 'number' ? maxCrit.order + 1 : 1;
+    }
+
     const criterion = new Criterion({
       rubricId: rubric._id,
       code: normalizedCode,
@@ -240,7 +246,7 @@ router.post("/rubric/:rubricId", authenticateToken, async (req, res) => {
       goodDescription,
       passedDescription,
       failedDescription,
-      order: order !== undefined ? parseInt(order, 10) : undefined,
+      order: finalOrder,
       gradingLevels: levelsCheck.levels,
     });
 
@@ -341,7 +347,12 @@ router.put("/:criterionId", authenticateToken, async (req, res) => {
       criterion.passedDescription = passedDescription;
     if (failedDescription !== undefined)
       criterion.failedDescription = failedDescription;
-    if (order !== undefined) criterion.order = parseInt(order, 10);
+    if (order !== undefined && order !== null && order !== "") {
+      const parsed = parseInt(order, 10);
+      if (!isNaN(parsed)) {
+        criterion.order = parsed;
+      }
+    }
 
     if (gradingLevels !== undefined) {
       const levelsCheck = validateGradingLevels(gradingLevels);

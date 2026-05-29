@@ -13,7 +13,7 @@ const ScoreSchema = new Schema({
   totalRawScore: { type: Number },
   totalWeightedScore: { type: Number },
   overallComment: { type: String },
-  status: { type: String, enum: ['draft', 'submitted', 'locked'], default: 'draft' },
+  status: { type: String, enum: ['submitted', 'locked'] },
   submittedAt: { type: Date },
   lockedAt: { type: Date }
 }, {

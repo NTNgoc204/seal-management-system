@@ -85,6 +85,43 @@ router.get('/suggestion', authenticateToken, async (req, res) => {
  */
 router.get('/team/:teamId/round/:roundId', authenticateToken, async (req, res) => {
   try {
+    const team = await Team.findById(req.params.teamId);
+    if (!team) return res.status(404).json({ message: 'Team not found.' });
+
+    // Check if the user is a coordinator or system admin
+    const coordinatorRole = await EventRole.findOne({
+      userId: req.user._id,
+      eventId: team.eventId,
+      role: 'coordinator',
+      status: 'active'
+    });
+    const isCoordinator = req.user.isSystemAdmin || !!coordinatorRole;
+
+    if (isCoordinator) {
+      // Coordinator views all scores submitted/locked by all judges for this team/round
+      const scores = await Score.find({
+        teamId: req.params.teamId,
+        roundId: req.params.roundId,
+        status: { $in: ['submitted', 'locked'] }
+      }).populate('judgeId', 'fullName email');
+
+      const results = [];
+      for (const s of scores) {
+        const details = await ScoreDetail.find({ scoreId: s._id });
+        results.push({
+          judge: s.judgeId,
+          score: s,
+          details: details
+        });
+      }
+
+      return res.json({
+        isCoordinator: true,
+        judgesScores: results
+      });
+    }
+
+    // Standard Judge views their own score
     const score = await Score.findOne({
       teamId: req.params.teamId,
       roundId: req.params.roundId,
@@ -260,7 +297,7 @@ router.post('/lock-round', authenticateToken, async (req, res) => {
     }
 
     // 2. Fetch all scores submitted for this round
-    const scores = await Score.find({ roundId, status: 'submitted' });
+    const scores = await Score.find({ roundId, status: { $in: ['submitted', 'locked'] } });
 
     // 3. For each team, calculate average weighted score
     const rankingsData = [];
@@ -338,18 +375,113 @@ router.post('/lock-round', authenticateToken, async (req, res) => {
 /**
  * @route   GET /api/grades/leaderboard/:roundId
  * @desc    Get team rankings leaderboard for a round
- * @access  Private (All authenticated users)
+ * @access  Private
+ *   - Coordinator / SystemAdmin: luôn xem được khi đã có ranking (sau lock)
+ *   - Các role khác (judge, participant): chỉ xem khi round status = 'completed'
  */
 router.get('/leaderboard/:roundId', authenticateToken, async (req, res) => {
   try {
+    const round = await Round.findById(req.params.roundId);
+    if (!round) return res.status(404).json({ message: 'Round not found.' });
+
+    // Check if the requester is coordinator or system admin
+    let isCoordinator = req.user.isSystemAdmin;
+    if (!isCoordinator) {
+      const coordRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId: round.eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      isCoordinator = !!coordRole;
+    }
+
+    // Non-coordinator: block if round is not completed yet
+    if (!isCoordinator && round.status !== 'completed') {
+      return res.json({
+        locked: true,
+        message: 'Bảng xếp hạng sẽ được công bố sau khi điều phối viên chốt điểm và khóa vòng thi.',
+        standings: []
+      });
+    }
+
     const leaderboard = await Ranking.find({ roundId: req.params.roundId })
       .sort({ rank: 1 })
       .populate('teamId', 'name status topicSubmission');
 
-    res.json(leaderboard);
+    res.json({ locked: false, isCoordinator, standings: leaderboard });
   } catch (error) {
     console.error('Fetch Leaderboard Error:', error.message);
     res.status(500).json({ message: 'Server error retrieving leaderboard.' });
+  }
+});
+
+/**
+ * @route   GET /api/grades/live-ranking/:roundId
+ * @desc    Real-time ranking calculated from submitted scores (no lock required)
+ * @access  Private (Coordinator / SystemAdmin only)
+ */
+router.get('/live-ranking/:roundId', authenticateToken, async (req, res) => {
+  try {
+    const round = await Round.findById(req.params.roundId);
+    if (!round) return res.status(404).json({ message: 'Round not found.' });
+
+    // Auth: only coordinator or system admin
+    let isCoordinator = req.user.isSystemAdmin;
+    if (!isCoordinator) {
+      const coordRole = await EventRole.findOne({
+        userId: req.user._id,
+        eventId: round.eventId,
+        role: 'coordinator',
+        status: 'active'
+      });
+      isCoordinator = !!coordRole;
+    }
+
+    if (!isCoordinator) {
+      return res.status(403).json({ message: 'Chỉ Điều phối viên mới có thể xem bảng xếp hạng thời gian thực.' });
+    }
+
+    // Get all teams in this round's track
+    const teams = await Team.find({ eventId: round.eventId, trackId: round.trackId, status: 'confirmed' })
+      .populate('topicSubmission');
+
+    // Get all submitted/locked scores for this round
+    const scores = await Score.find({
+      roundId: req.params.roundId,
+      status: { $in: ['submitted', 'locked'] }
+    }).populate('judgeId', 'fullName email');
+
+    // Calculate live average per team
+    const rankingData = teams.map((team) => {
+      const teamScores = scores.filter(s => s.teamId.toString() === team._id.toString());
+      const judgeCount = teamScores.length;
+      let averageScore = 0;
+      if (judgeCount > 0) {
+        const sum = teamScores.reduce((acc, s) => acc + s.totalWeightedScore, 0);
+        averageScore = Math.round((sum / judgeCount) * 100) / 100;
+      }
+      return {
+        teamId: { _id: team._id, name: team.name, topicSubmission: team.topicSubmission },
+        averageScore,
+        judgeCount,
+        judges: teamScores.map(s => ({ fullName: s.judgeId?.fullName, score: s.totalWeightedScore })),
+        isLive: true
+      };
+    });
+
+    // Sort and assign live rank
+    rankingData.sort((a, b) => b.averageScore - a.averageScore);
+    const advanceLimit = round.advanceTopN || 999;
+    rankingData.forEach((item, idx) => {
+      item.rank = idx + 1;
+      item.isAdvanced = (idx + 1) <= advanceLimit;
+    });
+
+    res.json({ isLive: true, roundStatus: round.status, standings: rankingData });
+  } catch (error) {
+    console.error('Live Ranking Error:', error.message);
+    res.status(500).json({ message: 'Server error retrieving live ranking.' });
   }
 });
 

@@ -19,6 +19,8 @@ router.get('/team/:teamId', authenticateToken, async (req, res) => {
   try {
     const analyses = await AiAnalysis.find({ teamId: req.params.teamId })
       .populate('commitId', 'message commitSha committedAt authorGithubUsername authorName')
+      .populate('teamId', 'name')
+      .populate('repositoryId', 'repoName repoUrl')
       .sort({ createdAt: -1 });
       
     res.json(analyses);
@@ -116,7 +118,7 @@ router.post('/team/:teamId/aggregate', authenticateToken, async (req, res) => {
       teamId: teamId,
       analysisType: 'repository_review', // maps to team_aggregate
       provider: 'Google Gemini',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-3.1-flash-lite',
       result: aggResult,
       status: 'completed',
       completedAt: new Date()

@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const fetch = globalThis.fetch || require('node-fetch');
 
 const isMock = process.env.EMAIL_SERVICE_MOCK === 'true';
 
@@ -14,6 +15,114 @@ if (!isMock) {
       pass: process.env.EMAIL_PASS
     }
   });
+}
+
+/**
+ * Unified email sending helper supporting both Brevo HTTP API and standard Nodemailer SMTP
+ */
+async function sendMailHelper(mailOptions) {
+  const isBrevoApi = process.env.EMAIL_PASS && (process.env.EMAIL_PASS.startsWith('xsmtpsib-') || process.env.EMAIL_PASS.startsWith('xkeysib-'));
+  const isResendApi = process.env.EMAIL_PASS && process.env.EMAIL_PASS.startsWith('re_');
+
+  // Parse recipient format: "Name" <email@domain.com> or email@domain.com
+  let recipientEmail = mailOptions.to;
+  let recipientName = '';
+  if (typeof recipientEmail === 'string') {
+    const toMatch = recipientEmail.match(/^(?:"?([^"]*)"?\s)?(?:<(.+)>)$/);
+    if (toMatch) {
+      recipientName = toMatch[1] || '';
+      recipientEmail = toMatch[2];
+    }
+  }
+
+  if (isResendApi) {
+    console.log('[EMAIL] Detected Resend API key. Routing mail through secure Resend HTTP API (Port 443)...');
+    try {
+      let senderEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+      // Resend sandbox only allows sending from onboarding@resend.dev if domain is not verified
+      if (senderEmail.includes('gmail.com') || senderEmail.includes('fpt.edu.vn') || senderEmail.includes('domain.com')) {
+        senderEmail = 'onboarding@resend.dev';
+      }
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EMAIL_PASS}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: `SEAL Hackathon <${senderEmail}>`,
+          to: [recipientEmail],
+          subject: mailOptions.subject,
+          html: mailOptions.html
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || `HTTP ${response.status}`);
+      }
+
+      const resData = await response.json();
+      console.log(`[EMAIL] Resend HTTP API Success! Message ID: ${resData.id}`);
+      return { messageId: resData.id };
+    } catch (apiErr) {
+      console.error(`[EMAIL] Resend HTTP API failed: ${apiErr.message}. Falling back to standard SMTP.`);
+      throw apiErr;
+    }
+  }
+
+  if (isBrevoApi) {
+    console.log('[EMAIL] Detected Brevo API key. Routing mail through secure HTTP API (Port 443)...');
+    try {
+      let senderName = 'SEAL Hackathon';
+      let senderEmail = process.env.EMAIL_FROM || 'no-reply@domain.com';
+
+      // Parse sender format: "Name" <email@domain.com>
+      const fromMatch = senderEmail.match(/^(?:"?([^"]*)"?\s)?(?:<(.+)>)$/);
+      if (fromMatch) {
+        senderName = fromMatch[1] || senderName;
+        senderEmail = fromMatch[2];
+      } else if (senderEmail.includes('@')) {
+        senderName = senderEmail.split('@')[0];
+      }
+
+      const toField = { email: recipientEmail };
+      if (recipientName) {
+        toField.name = recipientName;
+      }
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': process.env.EMAIL_PASS,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [toField],
+          subject: mailOptions.subject,
+          htmlContent: mailOptions.html
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || `HTTP ${response.status}`);
+      }
+
+      const resData = await response.json();
+      console.log(`[EMAIL] Brevo HTTP API Success! Message ID: ${resData.messageId}`);
+      return { messageId: resData.messageId };
+    } catch (apiErr) {
+      console.error(`[EMAIL] Brevo HTTP API failed: ${apiErr.message}. Falling back to standard SMTP.`);
+      throw apiErr;
+    }
+  }
+
+  // Fallback to SMTP
+  return await transporter.sendMail(mailOptions);
 }
 
 /**
@@ -56,7 +165,7 @@ async function sendTeamInvitation(email, teamName, inviteLink) {
   }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sendMailHelper(mailOptions);
     console.log(`Email sent: ${info.messageId}`);
     return true;
   } catch (error) {
@@ -66,7 +175,7 @@ async function sendTeamInvitation(email, teamName, inviteLink) {
     console.log(`To: ${email}`);
     console.log(`Confirmation Link: ${inviteLink}`);
     console.log('-----------------------------\n');
-    return true;
+    throw error;
   }
 }
 
@@ -110,7 +219,7 @@ async function sendEmailVerification(email, fullName, verifyLink) {
   }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sendMailHelper(mailOptions);
     console.log(`Verification email sent: ${info.messageId}`);
     return true;
   } catch (error) {
@@ -119,7 +228,7 @@ async function sendEmailVerification(email, fullName, verifyLink) {
     console.log(`To: ${email}`);
     console.log(`Verification Link: ${verifyLink}`);
     console.log('-------------------------------------\n');
-    return true;
+    throw error;
   }
 }
 
@@ -165,12 +274,12 @@ async function sendEventCreationNotification(email, fullName, eventName, semeste
   }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sendMailHelper(mailOptions);
     console.log(`Event notification email sent to ${email}: ${info.messageId}`);
     return true;
   } catch (error) {
     console.error(`Error sending event notification email to ${email}:`, error);
-    return true;
+    throw error;
   }
 }
 

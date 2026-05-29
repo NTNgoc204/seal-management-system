@@ -58,8 +58,6 @@ interface RoundsTabProps {
   setCritDesc: (val: string) => void;
   critMaxScore: string;
   setCritMaxScore: (val: string) => void;
-  critOrder: string;
-  setCritOrder: (val: string) => void;
   critGradingLevels: any[];
   setCritGradingLevels: React.Dispatch<React.SetStateAction<any[]>>;
   editingCriterion: any;
@@ -141,8 +139,6 @@ export default function RoundsTab({
   setCritDesc,
   critMaxScore,
   setCritMaxScore,
-  critOrder,
-  setCritOrder,
   critGradingLevels,
   editingCriterion,
   handleSaveCriterion,
@@ -673,7 +669,7 @@ export default function RoundsTab({
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <input
                         type="number"
                         required
@@ -688,13 +684,6 @@ export default function RoundsTab({
                         placeholder="Max Điểm"
                         value={critMaxScore}
                         onChange={(e) => setCritMaxScore(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Thứ tự"
-                        value={critOrder}
-                        onChange={(e) => setCritOrder(e.target.value)}
                         className="w-full px-2 py-1.5 rounded text-xs bg-slate-900 border border-slate-800 text-slate-200"
                       />
                     </div>

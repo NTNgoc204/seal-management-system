@@ -58,10 +58,11 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     if (!isFirstUser) {
-      // Send verification email
+      // Send verification email (Asynchronous, non-blocking to prevent UI lag)
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
       const verifyLink = `${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}`;
-      await emailService.sendEmailVerification(user.email, user.fullName, verifyLink);
+      emailService.sendEmailVerification(user.email, user.fullName, verifyLink)
+        .catch(err => console.error(`Failed to send email verification to ${user.email}:`, err.message));
 
       return res.status(201).json({
         message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
@@ -613,6 +614,79 @@ router.get('/verify-email', async (req, res) => {
   } catch (error) {
     console.error('Email Verification Route Error:', error.message);
     res.status(500).send('Server error during email verification.');
+  }
+});
+
+/**
+ * @route   GET /api/auth/test-email
+ * @desc    Diagnose SMTP connection and credentials on the live server
+ * @access  Public (For debugging)
+ */
+router.get('/test-email', async (req, res) => {
+  const config = {
+    host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
+    port: parseInt(process.env.EMAIL_PORT || '587'),
+    secure: process.env.EMAIL_PORT === '465',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  };
+
+  const logs = [];
+
+  try {
+    logs.push(`Initiating E2E email diagnostics through emailService...`);
+    let emailTo = req.query.to || 'sealhackathonfpt@gmail.com';
+    if (!req.query.to && process.env.EMAIL_USER && process.env.EMAIL_USER.includes('@')) {
+      emailTo = process.env.EMAIL_USER;
+    }
+    logs.push(`Target recipient: ${emailTo}`);
+    
+    // Call emailService directly (this will route via Brevo HTTP API or standard SMTP depending on key prefix)
+    const success = await emailService.sendEmailVerification(
+      emailTo, 
+      'SEAL Debugger', 
+      'https://seal-management-system.onrender.com/api/auth/verify-email?token=test-diagnostics'
+    );
+    
+    if (!success) {
+      throw new Error('emailService returned false');
+    }
+    
+    logs.push(`✅ emailService reported success!`);
+
+    res.json({
+      status: 'success',
+      message: 'SMTP/API mail delivery is fully functional!',
+      configUsed: {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        user: config.auth.user,
+        passMasked: config.auth.pass ? `${config.auth.pass.substring(0, 4)}***` : 'None'
+      },
+      diagnosticLogs: logs
+    });
+
+  } catch (error) {
+    logs.push(`❌ ERROR ENCOUNTERED: ${error.message}`);
+    res.status(500).json({
+      status: 'failed',
+      message: 'SMTP/API Diagnostics failed. See logs below.',
+      errorDetails: {
+        message: error.message,
+        stack: error.stack
+      },
+      configUsed: {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        user: config.auth.user,
+        passMasked: config.auth.pass ? `${config.auth.pass.substring(0, 4)}***` : 'None'
+      },
+      diagnosticLogs: logs
+    });
   }
 });
 
