@@ -13,7 +13,13 @@ import TracksTab from "./TracksTab";
 import RoundsTab from "./RoundsTab";
 import GithubTab from "./GithubTab";
 
-const Github = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+const Github = ({
+  size = 20,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
@@ -35,11 +41,13 @@ interface AdminDashboardProps {
   defaultTab?: "admin" | "events";
 }
 
-export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardProps) {
+export default function AdminDashboard({
+  defaultTab = "admin",
+}: AdminDashboardProps) {
   const token = localStorage.getItem("token");
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const eventIdParam = searchParams.get('eventId');
+  const eventIdParam = searchParams.get("eventId");
   const [eventName, setEventName] = useState("");
   const [semester, setSemester] = useState("Spring");
   const [year, setYear] = useState("2026");
@@ -68,7 +76,6 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
   const [existingRubrics, setExistingRubrics] = useState<any[]>([]);
   const [selectedSourceRubricId, setSelectedSourceRubricId] = useState("");
 
-
   const [rubricName, setRubricName] = useState("");
   const [rubric, setRubric] = useState<any>(null);
   const [criteria, setCriteria] = useState<any[]>([]);
@@ -91,7 +98,9 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
   const [message, setMessage] = useState({ type: "", text: "" });
 
   // Tab management state
-  const [activeTab, setActiveTab] = useState<'admin' | 'events' | 'teams' | 'tracks' | 'rounds' | 'github'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<
+    "admin" | "events" | "teams" | "rounds" | "tracks" | "github"
+  >(defaultTab);
 
   // Edit Event States
   const [editEventName, setEditEventName] = useState("");
@@ -102,34 +111,34 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
   const [editEventGithubOrgName, setEditEventGithubOrgName] = useState("");
 
   // Rubric Edit Form States
-  const [selectedRubricRoundId, setSelectedRubricRoundId] = useState('');
+  const [selectedRubricRoundId, setSelectedRubricRoundId] = useState("");
   const [editingRubric, setEditingRubric] = useState(false);
-  const [editRubricName, setEditRubricName] = useState('');
-  const [editRubricDesc, setEditRubricDesc] = useState('');
-  const [editRubricTotalWeight, setEditRubricTotalWeight] = useState('100');
-  const [editRubricMaxScore, setEditRubricMaxScore] = useState('10');
+  const [editRubricName, setEditRubricName] = useState("");
+  const [editRubricDesc, setEditRubricDesc] = useState("");
+  const [editRubricTotalWeight, setEditRubricTotalWeight] = useState("100");
+  const [editRubricMaxScore, setEditRubricMaxScore] = useState("10");
   const [editRubricIsActive, setEditRubricIsActive] = useState(true);
 
   // Criterion States (Advanced)
-  const [critMaxScore, setCritMaxScore] = useState('10');
-  const [critOrder, setCritOrder] = useState('1');
+  const [critMaxScore, setCritMaxScore] = useState("10");
+  const [critOrder, setCritOrder] = useState("1");
   const [critGradingLevels, setCritGradingLevels] = useState<any[]>([]);
   const [editingCriterion, setEditingCriterion] = useState<any>(null);
 
   // Grading Level Form States
-  const [levelLabel, setLevelLabel] = useState('');
-  const [levelMinScore, setLevelMinScore] = useState('');
-  const [levelMaxScore, setLevelMaxScore] = useState('');
-  const [levelDesc, setLevelDesc] = useState('');
+  const [levelLabel, setLevelLabel] = useState("");
+  const [levelMinScore, setLevelMinScore] = useState("");
+  const [levelMaxScore, setLevelMaxScore] = useState("");
+  const [levelDesc, setLevelDesc] = useState("");
 
   // GitHub integration states
-  const [githubOrgName, setGithubOrgName] = useState('seal-hackathon-2026');
+  const [githubOrgName, setGithubOrgName] = useState("seal-hackathon-2026");
   const [repos, setRepos] = useState<any[]>([]);
   const [allTeams, setAllTeams] = useState<any[]>([]);
-  const [linkingTeamId, setLinkingTeamId] = useState('');
-  const [manualRepoName, setManualRepoName] = useState('');
-  const [manualRepoUrl, setManualRepoUrl] = useState('');
-  const [syncingRepoId, setSyncingRepoId] = useState('');
+  const [linkingTeamId, setLinkingTeamId] = useState("");
+  const [manualRepoName, setManualRepoName] = useState("");
+  const [manualRepoUrl, setManualRepoUrl] = useState("");
+  const [syncingRepoId, setSyncingRepoId] = useState("");
 
   useEffect(() => {
     fetchEvents();
@@ -148,7 +157,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
 
   useEffect(() => {
     if (eventIdParam) {
-      const foundEvent = events.find(e => e._id === eventIdParam);
+      const foundEvent = events.find((e) => e._id === eventIdParam);
       if (foundEvent) {
         setSelectedEvent(foundEvent);
         setEditEventName(foundEvent.name || "");
@@ -187,9 +196,12 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
 
   const fetchRepositories = async (eventId: string) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/github-repositories?eventId=${eventId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(
+        `http://localhost:5000/api/github-repositories?eventId=${eventId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       setRepos(res.data);
     } catch (err) {
       console.error(err);
@@ -198,10 +210,13 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
 
   const fetchAllTeams = async (eventId: string) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/teams/all/${eventId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAllTeams(res.data.filter((t: any) => t.status === 'confirmed'));
+      const res = await axios.get(
+        `http://localhost:5000/api/teams/all/${eventId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      setAllTeams(res.data.filter((t: any) => t.status === "confirmed"));
     } catch (err) {
       console.error(err);
     }
@@ -377,7 +392,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
     setEditEventGithubOrgName(eventObj.githubOrgName || "");
 
     // If we are currently on the 'events' tab/route, sync URL
-    if (defaultTab === 'events') {
+    if (defaultTab === "events") {
       setSearchParams({ eventId: eventObj._id });
     }
 
@@ -456,7 +471,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           maxTeams: parseInt(editEventMaxTeams),
           githubOrgName: editEventGithubOrgName,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setMessage({ type: "success", text: "Cập nhật sự kiện thành công!" });
       setSelectedEvent(res.data.event);
@@ -473,20 +488,28 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
 
   const handleUpdateEventStatus = async (newStatus: string) => {
     if (!selectedEvent) return;
-    setMessage({ type: '', text: '' });
+    setMessage({ type: "", text: "" });
     setLoading(true);
 
     try {
       const res = await axios.put(
         `http://localhost:5000/api/events/${selectedEvent._id}`,
         { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      setMessage({ type: 'success', text: 'Cập nhật trạng thái cuộc thi thành công!' });
+      setMessage({
+        type: "success",
+        text: "Cập nhật trạng thái cuộc thi thành công!",
+      });
       setSelectedEvent(res.data.event);
       fetchEvents();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi cập nhật trạng thái cuộc thi.' });
+      setMessage({
+        type: "error",
+        text:
+          err.response?.data?.message ||
+          "Lỗi khi cập nhật trạng thái cuộc thi.",
+      });
     } finally {
       setLoading(false);
     }
@@ -496,7 +519,10 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
     e.preventDefault();
     if (!selectedEvent) return;
     if (!trackRoundId) {
-      setMessage({ type: "error", text: "Vui lòng chọn Vòng thi cho Bảng đấu." });
+      setMessage({
+        type: "error",
+        text: "Vui lòng chọn Vòng thi cho Bảng đấu.",
+      });
       return;
     }
     setMessage({ type: "", text: "" });
@@ -635,16 +661,19 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
       return;
     }
     try {
-      const res = await axios.get(`http://localhost:5000/api/rubrics/round/${selectedRubricRoundId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(
+        `http://localhost:5000/api/rubrics/round/${selectedRubricRoundId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       setRubric(res.data.rubric);
       setCriteria(res.data.criteria || []);
-      
+
       // Populate edit fields if rubric exists
       if (res.data.rubric) {
         setEditRubricName(res.data.rubric.name);
-        setEditRubricDesc(res.data.rubric.description || '');
+        setEditRubricDesc(res.data.rubric.description || "");
         setEditRubricTotalWeight(String(res.data.rubric.totalWeight || 100));
         setEditRubricMaxScore(String(res.data.rubric.maxCriterionScore || 10));
         setEditRubricIsActive(res.data.rubric.isActive);
@@ -662,16 +691,18 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
   useEffect(() => {
     // When selected track or rounds change, auto-select a round for rubric selection
     if (selectedTrack && rounds.length > 0) {
-      const associatedRound = rounds.find((r: any) => r._id === selectedTrack.roundId);
+      const associatedRound = rounds.find(
+        (r: any) => r._id === selectedTrack.roundId,
+      );
       if (associatedRound) {
         setSelectedRubricRoundId(associatedRound._id);
       } else {
-        setSelectedRubricRoundId('');
+        setSelectedRubricRoundId("");
         setRubric(null);
         setCriteria([]);
       }
     } else {
-      setSelectedRubricRoundId('');
+      setSelectedRubricRoundId("");
       setRubric(null);
       setCriteria([]);
     }
@@ -683,21 +714,24 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
 
     try {
       await axios.post(
-        'http://localhost:5000/api/rubrics',
+        "http://localhost:5000/api/rubrics",
         {
           eventId: selectedEvent._id,
           trackId: selectedTrack._id,
           roundId: selectedRubricRoundId,
-          name: rubricName
+          name: rubricName,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      setRubricName('');
-      setMessage({ type: 'success', text: 'Khởi tạo Rubric thành công!' });
+      setRubricName("");
+      setMessage({ type: "success", text: "Khởi tạo Rubric thành công!" });
       fetchRoundsAndRubric();
       fetchExistingRubrics();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi khởi tạo Rubric.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi khởi tạo Rubric.",
+      });
     }
   };
 
@@ -712,35 +746,41 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           description: editRubricDesc,
           totalWeight: parseFloat(editRubricTotalWeight),
           maxCriterionScore: parseFloat(editRubricMaxScore),
-          isActive: editRubricIsActive
+          isActive: editRubricIsActive,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setRubric(res.data);
       setEditingRubric(false);
-      setMessage({ type: 'success', text: 'Cập nhật Rubric thành công!' });
+      setMessage({ type: "success", text: "Cập nhật Rubric thành công!" });
       fetchRoundsAndRubric();
       fetchExistingRubrics();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi cập nhật Rubric.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi cập nhật Rubric.",
+      });
     }
   };
 
   const handleDeleteRubric = async () => {
     if (!rubric) return;
-    if (!window.confirm('Bạn có chắc chắn muốn xóa/vô hiệu hóa Rubric này?')) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa/vô hiệu hóa Rubric này?"))
+      return;
     try {
-      await axios.delete(
-        `http://localhost:5000/api/rubrics/${rubric._id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await axios.delete(`http://localhost:5000/api/rubrics/${rubric._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setRubric(null);
       setCriteria([]);
-      setMessage({ type: 'success', text: 'Đã xóa Rubric thành công.' });
+      setMessage({ type: "success", text: "Đã xóa Rubric thành công." });
       fetchRoundsAndRubric();
       fetchExistingRubrics();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa Rubric.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi xóa Rubric.",
+      });
     }
   };
 
@@ -753,7 +793,10 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
     const parsedOrder = parseInt(critOrder);
 
     if (isNaN(parsedWeight) || isNaN(parsedMaxScore)) {
-      setMessage({ type: 'error', text: 'Trọng số và điểm tối đa phải là số.' });
+      setMessage({
+        type: "error",
+        text: "Trọng số và điểm tối đa phải là số.",
+      });
       return;
     }
 
@@ -763,7 +806,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
       description: critDesc.trim(),
       weight: parsedWeight,
       maxScore: parsedMaxScore,
-      gradingLevels: critGradingLevels
+      gradingLevels: critGradingLevels,
     };
 
     if (editingCriterion) {
@@ -775,43 +818,54 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
         await axios.put(
           `http://localhost:5000/api/criteria/${editingCriterion._id}`,
           payload,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
-        setMessage({ type: 'success', text: 'Cập nhật tiêu chí chấm điểm thành công!' });
+        setMessage({
+          type: "success",
+          text: "Cập nhật tiêu chí chấm điểm thành công!",
+        });
       } else {
         await axios.post(
           `http://localhost:5000/api/criteria/rubric/${rubric._id}`,
           payload,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
-        setMessage({ type: 'success', text: 'Đã thêm tiêu chí chấm điểm mới!' });
+        setMessage({
+          type: "success",
+          text: "Đã thêm tiêu chí chấm điểm mới!",
+        });
       }
 
-      setCritCode('');
-      setCritName('');
-      setCritDesc('');
-      setCritWeight('20');
-      setCritMaxScore('10');
-      setCritOrder('1');
+      setCritCode("");
+      setCritName("");
+      setCritDesc("");
+      setCritWeight("20");
+      setCritMaxScore("10");
+      setCritOrder("1");
       setCritGradingLevels([]);
       setEditingCriterion(null);
       fetchRoundsAndRubric();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi lưu tiêu chí.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi lưu tiêu chí.",
+      });
     }
   };
 
   const handleDeleteCriterion = async (criterionId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tiêu chí này?')) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tiêu chí này?")) return;
     try {
-      await axios.delete(
-        `http://localhost:5000/api/criteria/${criterionId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMessage({ type: 'success', text: 'Đã xóa tiêu chí thành công.' });
+      await axios.delete(`http://localhost:5000/api/criteria/${criterionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessage({ type: "success", text: "Đã xóa tiêu chí thành công." });
       fetchRoundsAndRubric();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa tiêu chí.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi xóa tiêu chí.",
+      });
     }
   };
 
@@ -819,7 +873,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
     setEditingCriterion(c);
     setCritCode(c.code);
     setCritName(c.name);
-    setCritDesc(c.description || '');
+    setCritDesc(c.description || "");
     setCritWeight(String(c.weight));
     setCritMaxScore(String(c.maxScore || 10));
     setCritOrder(String(c.order || 1));
@@ -828,28 +882,28 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
 
   const handleCancelEditCriterion = () => {
     setEditingCriterion(null);
-    setCritCode('');
-    setCritName('');
-    setCritDesc('');
-    setCritWeight('20');
-    setCritMaxScore('10');
-    setCritOrder('1');
+    setCritCode("");
+    setCritName("");
+    setCritDesc("");
+    setCritWeight("20");
+    setCritMaxScore("10");
+    setCritOrder("1");
     setCritGradingLevels([]);
   };
 
   const handleAddGradingLevel = () => {
-    if (!levelLabel.trim() || levelMinScore === '' || levelMaxScore === '') {
-      alert('Vui lòng điền nhãn, điểm tối thiểu và điểm tối đa.');
+    if (!levelLabel.trim() || levelMinScore === "" || levelMaxScore === "") {
+      alert("Vui lòng điền nhãn, điểm tối thiểu và điểm tối đa.");
       return;
     }
     const min = parseFloat(levelMinScore);
     const max = parseFloat(levelMaxScore);
     if (isNaN(min) || isNaN(max)) {
-      alert('Điểm số phải là số.');
+      alert("Điểm số phải là số.");
       return;
     }
     if (min > max) {
-      alert('Điểm tối thiểu không được lớn hơn điểm tối đa.');
+      alert("Điểm tối thiểu không được lớn hơn điểm tối đa.");
       return;
     }
 
@@ -857,22 +911,22 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
       label: levelLabel.trim(),
       minScore: min,
       maxScore: max,
-      description: levelDesc.trim()
+      description: levelDesc.trim(),
     };
 
-    setCritGradingLevels(prev => {
+    setCritGradingLevels((prev) => {
       const updated = [...prev, newLvl];
       return updated.sort((a, b) => a.minScore - b.minScore);
     });
 
-    setLevelLabel('');
-    setLevelMinScore('');
-    setLevelMaxScore('');
-    setLevelDesc('');
+    setLevelLabel("");
+    setLevelMinScore("");
+    setLevelMaxScore("");
+    setLevelDesc("");
   };
 
   const handleRemoveGradingLevel = (index: number) => {
-    setCritGradingLevels(prev => prev.filter((_, idx) => idx !== index));
+    setCritGradingLevels((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const handleLockRubric = async () => {
@@ -884,7 +938,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
       const res = await axios.post(
         `http://localhost:5000/api/rubrics/${rubric._id}/lock`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setRubric(res.data.rubric);
       setMessage({
@@ -903,65 +957,81 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
   };
 
   const handleCreateRepo = async (teamId: string) => {
-    setMessage({ type: '', text: '' });
+    setMessage({ type: "", text: "" });
     try {
       const res = await axios.post(
-        'http://localhost:5000/api/github-repositories/create',
+        "http://localhost:5000/api/github-repositories/create",
         { teamId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      setMessage({ type: 'success', text: res.data.message });
+      setMessage({ type: "success", text: res.data.message });
       if (selectedEvent) {
         fetchRepositories(selectedEvent._id);
         fetchAllTeams(selectedEvent._id);
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi tạo repository.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi tạo repository.",
+      });
     }
   };
 
   const handleLinkRepo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!linkingTeamId || !manualRepoName || !manualRepoUrl) return;
-    setMessage({ type: '', text: '' });
+    setMessage({ type: "", text: "" });
 
     try {
       const res = await axios.post(
-        'http://localhost:5000/api/github-repositories/link',
-        { teamId: linkingTeamId, repoName: manualRepoName, repoUrl: manualRepoUrl },
-        { headers: { Authorization: `Bearer ${token}` } }
+        "http://localhost:5000/api/github-repositories/link",
+        {
+          teamId: linkingTeamId,
+          repoName: manualRepoName,
+          repoUrl: manualRepoUrl,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      setMessage({ type: 'success', text: res.data.message });
-      setManualRepoName('');
-      setManualRepoUrl('');
-      setLinkingTeamId('');
+      setMessage({ type: "success", text: res.data.message });
+      setManualRepoName("");
+      setManualRepoUrl("");
+      setLinkingTeamId("");
       if (selectedEvent) {
         fetchRepositories(selectedEvent._id);
         fetchAllTeams(selectedEvent._id);
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi liên kết repository.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi liên kết repository.",
+      });
     }
   };
 
   const handleSyncRepo = async (repoId: string) => {
     setSyncingRepoId(repoId);
-    setMessage({ type: '', text: '' });
+    setMessage({ type: "", text: "" });
     try {
-      setMessage({ type: 'success', text: 'Đang bắt đầu đồng bộ và chạy AI Review...' });
+      setMessage({
+        type: "success",
+        text: "Đang bắt đầu đồng bộ và chạy AI Review...",
+      });
       const res = await axios.post(
         `http://localhost:5000/api/github-repositories/${repoId}/sync`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      setMessage({ type: 'success', text: res.data.message });
+      setMessage({ type: "success", text: res.data.message });
       if (selectedEvent) {
         fetchRepositories(selectedEvent._id);
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi đồng bộ.' });
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Lỗi khi đồng bộ.",
+      });
     } finally {
-      setSyncingRepoId('');
+      setSyncingRepoId("");
     }
   };
 
@@ -1125,8 +1195,8 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                 {selectedEvent.name}
               </h1>
               <p className="text-xs text-slate-400 mt-1">
-                Học kỳ: {selectedEvent.semester} {selectedEvent.year} |
-                Trạng thái:{" "}
+                Học kỳ: {selectedEvent.semester} {selectedEvent.year} | Trạng
+                thái:{" "}
                 <span className="text-indigo-400 font-bold uppercase">
                   {selectedEvent.status}
                 </span>
@@ -1134,17 +1204,29 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
-                <label className="text-[10px] font-bold text-slate-400 uppercase font-mono">Trạng thái:</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase font-mono">
+                  Trạng thái:
+                </label>
                 <select
                   value={selectedEvent.status}
                   onChange={(e) => handleUpdateEventStatus(e.target.value)}
                   className="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer"
                 >
-                  <option className="bg-slate-900" value="draft">Draft</option>
-                  <option className="bg-slate-900" value="registration">Registration</option>
-                  <option className="bg-slate-900" value="ongoing">Ongoing</option>
-                  <option className="bg-slate-900" value="completed">Completed</option>
-                  <option className="bg-slate-900" value="cancelled">Cancelled</option>
+                  <option className="bg-slate-900" value="draft">
+                    Draft
+                  </option>
+                  <option className="bg-slate-900" value="registration">
+                    Registration
+                  </option>
+                  <option className="bg-slate-900" value="ongoing">
+                    Ongoing
+                  </option>
+                  <option className="bg-slate-900" value="completed">
+                    Completed
+                  </option>
+                  <option className="bg-slate-900" value="cancelled">
+                    Cancelled
+                  </option>
                 </select>
               </div>
               <button
@@ -1190,16 +1272,6 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
             Đội thi tham gia
           </button>
           <button
-            onClick={() => setActiveTab("tracks")}
-            className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === "tracks"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 font-semibold"
-                : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
-            }`}
-          >
-            Bảng đấu
-          </button>
-          <button
             onClick={() => setActiveTab("rounds")}
             className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
               activeTab === "rounds"
@@ -1208,6 +1280,16 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
             }`}
           >
             Vòng thi & Tiêu chí
+          </button>
+          <button
+            onClick={() => setActiveTab("tracks")}
+            className={`font-mono text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
+              activeTab === "tracks"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 font-semibold"
+                : "text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800"
+            }`}
+          >
+            Bảng đấu
           </button>
           <button
             onClick={() => setActiveTab("github")}
@@ -1224,7 +1306,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
       )}
 
       {/* TAB CONTENT AREAS */}
-      
+
       {/* 1. ADMIN TAB */}
       {activeTab === "admin" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1249,7 +1331,9 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                   >
                     <div>
                       <div className="flex justify-between items-start w-full">
-                        <span className={`font-mono text-sm tracking-tight ${selectedEvent?._id === e._id ? 'text-indigo-405' : 'text-slate-200'}`}>
+                        <span
+                          className={`font-mono text-sm tracking-tight ${selectedEvent?._id === e._id ? "text-indigo-405" : "text-slate-200"}`}
+                        >
                           {e.name}
                         </span>
                         <span className="text-[10px] bg-slate-950 px-2 py-0.5 rounded font-mono border border-slate-800 text-slate-350">
@@ -1260,9 +1344,14 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                         {e.description || "Chưa có mô tả chi tiết."}
                       </p>
                     </div>
-                    
+
                     <div className="flex justify-between items-center w-full mt-4 pt-2 border-t border-slate-800/40 text-[10px] font-mono">
-                      <span>Trạng thái: <strong className="text-indigo-300 uppercase">{e.status}</strong></span>
+                      <span>
+                        Trạng thái:{" "}
+                        <strong className="text-indigo-300 uppercase">
+                          {e.status}
+                        </strong>
+                      </span>
                       <span className="text-indigo-450 font-bold bg-indigo-500/5 px-2.5 py-0.5 rounded">
                         {e.teamCount || 0} Đội tham gia
                       </span>
@@ -1271,7 +1360,9 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic font-mono">Chưa có cuộc thi nào được khởi tạo.</p>
+              <p className="text-xs text-slate-500 italic font-mono">
+                Chưa có cuộc thi nào được khởi tạo.
+              </p>
             )}
           </div>
 
@@ -1329,7 +1420,9 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                           onChange={(e) => setRoleTrackId(e.target.value)}
                           className="w-full px-3 py-2.5 rounded-xl text-xs font-mono bg-slate-950 border border-slate-850 text-slate-300"
                         >
-                          <option value="">Toàn bộ cuộc thi (Không chọn Track)</option>
+                          <option value="">
+                            Toàn bộ cuộc thi (Không chọn Track)
+                          </option>
                           {tracks.map((t: any) => (
                             <option key={t._id} value={t._id}>
                               {t.name}
@@ -1393,7 +1486,10 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
             ) : (
               <div className="glass p-6 rounded-2xl text-center py-12 text-slate-500 font-mono border-dashed border-slate-800">
                 <Users size={32} className="mx-auto mb-3 text-slate-600" />
-                <p className="text-xs">Vui lòng chọn sự kiện ở danh sách bên trái để thực hiện phân quyền.</p>
+                <p className="text-xs">
+                  Vui lòng chọn sự kiện ở danh sách bên trái để thực hiện phân
+                  quyền.
+                </p>
               </div>
             )}
           </div>
@@ -1406,7 +1502,7 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           {/* Main settings form */}
           <div className="lg:col-span-2 glass p-6 rounded-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl"></div>
-            
+
             {selectedEvent ? (
               // EDIT SELECTED EVENT FORM
               <>
@@ -1439,7 +1535,9 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                       required
                       placeholder="Ví dụ: seal-hackathon-2026"
                       value={editEventGithubOrgName}
-                      onChange={(e) => setEditEventGithubOrgName(e.target.value)}
+                      onChange={(e) =>
+                        setEditEventGithubOrgName(e.target.value)
+                      }
                       className="w-full px-4 py-2.5 rounded-xl text-sm font-mono bg-slate-950 border border-slate-850 text-slate-200"
                     />
                   </div>
@@ -1635,14 +1733,13 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
                 <span>HƯỚNG DẪN THIẾT LẬP</span>
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                {selectedEvent ? (
-                  "Bạn đang chỉnh sửa cấu hình của cuộc thi được chọn. Thay đổi các thông tin chi tiết như tên, mô tả hoặc giới hạn số đội, sau đó bấm Lưu thay đổi."
-                ) : (
-                  "Khởi tạo một cuộc thi mới đại diện cho học kỳ cụ thể. Cuộc thi này sẽ chứa các bảng đấu (Tracks) và vòng thi (Rounds) tiếp theo."
-                )}
+                {selectedEvent
+                  ? "Bạn đang chỉnh sửa cấu hình của cuộc thi được chọn. Thay đổi các thông tin chi tiết như tên, mô tả hoặc giới hạn số đội, sau đó bấm Lưu thay đổi."
+                  : "Khởi tạo một cuộc thi mới đại diện cho học kỳ cụ thể. Cuộc thi này sẽ chứa các bảng đấu (Tracks) và vòng thi (Rounds) tiếp theo."}
               </p>
               <div className="mt-4 p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-[11px] text-indigo-300 font-mono">
-                Lưu ý: Chỉ hệ thống Admin/Ban tổ chức mới được quyền khởi tạo hoặc cấu hình cuộc thi mới.
+                Lưu ý: Chỉ hệ thống Admin/Ban tổ chức mới được quyền khởi tạo
+                hoặc cấu hình cuộc thi mới.
               </div>
             </div>
           </div>
@@ -1650,8 +1747,8 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
       )}
 
       {/* 3. TEAMS TAB */}
-      {activeTab === "teams" && (
-        selectedEvent ? (
+      {activeTab === "teams" &&
+        (selectedEvent ? (
           <TeamsTab
             selectedEvent={selectedEvent}
             teamsList={teamsList}
@@ -1662,14 +1759,14 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           />
         ) : (
           <div className="glass p-8 text-center rounded-2xl text-slate-500 font-mono">
-            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để quản lý Đội thi.
+            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để
+            quản lý Đội thi.
           </div>
-        )
-      )}
+        ))}
 
       {/* 4. TRACKS TAB */}
-      {activeTab === "tracks" && (
-        selectedEvent ? (
+      {activeTab === "tracks" &&
+        (selectedEvent ? (
           <TracksTab
             selectedEvent={selectedEvent}
             tracks={tracks}
@@ -1697,14 +1794,14 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           />
         ) : (
           <div className="glass p-8 text-center rounded-2xl text-slate-500 font-mono">
-            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để quản lý Bảng đấu.
+            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để
+            quản lý Bảng đấu.
           </div>
-        )
-      )}
+        ))}
 
       {/* 5. ROUNDS TAB */}
-      {activeTab === "rounds" && (
-        selectedEvent ? (
+      {activeTab === "rounds" &&
+        (selectedEvent ? (
           <RoundsTab
             selectedEvent={selectedEvent}
             tracks={tracks}
@@ -1781,14 +1878,14 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           />
         ) : (
           <div className="glass p-8 text-center rounded-2xl text-slate-500 font-mono">
-            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để quản lý Vòng thi.
+            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để
+            quản lý Vòng thi.
           </div>
-        )
-      )}
+        ))}
 
       {/* 6. GITHUB TAB */}
-      {activeTab === "github" && (
-        selectedEvent ? (
+      {activeTab === "github" &&
+        (selectedEvent ? (
           <GithubTab
             repos={repos}
             allTeams={allTeams}
@@ -1805,10 +1902,10 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           />
         ) : (
           <div className="glass p-8 text-center rounded-2xl text-slate-500 font-mono">
-            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để quản lý GitHub.
+            Vui lòng chọn cuộc thi từ thanh tiêu đề hoặc trang Quản trị viên để
+            quản lý GitHub.
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }

@@ -9,7 +9,7 @@ interface RoundsTabProps {
   setSelectedTrack: (track: any) => void;
   selectedRubricRoundId: string;
   setSelectedRubricRoundId: (id: string) => void;
-  
+
   // Create Round form props
   roundName: string;
   setRoundName: (val: string) => void;
@@ -27,7 +27,7 @@ interface RoundsTabProps {
   rubricName: string;
   setRubricName: (val: string) => void;
   handleCreateRound: (e: React.FormEvent) => Promise<void>;
-  
+
   // Rubric Display & Edit props
   rubric: any;
   criteria: any[];
@@ -46,7 +46,7 @@ interface RoundsTabProps {
   handleUpdateRubric: (e: React.FormEvent) => Promise<void>;
   handleDeleteRubric: () => Promise<void>;
   handleLockRubric: () => Promise<void>;
-  
+
   // Criteria props
   critCode: string;
   setCritCode: (val: string) => void;
@@ -66,7 +66,7 @@ interface RoundsTabProps {
   handleDeleteCriterion: (criterionId: string) => Promise<void>;
   handleStartEditCriterion: (c: any) => void;
   handleCancelEditCriterion: () => void;
-  
+
   // Grading levels props
   levelLabel: string;
   setLevelLabel: (val: string) => void;
@@ -78,10 +78,10 @@ interface RoundsTabProps {
   setLevelDesc: (val: string) => void;
   handleAddGradingLevel: () => void;
   handleRemoveGradingLevel: (index: number) => void;
-  
+
   // Rubric creation fallback props
   handleCreateRubric: (e: React.FormEvent) => Promise<void>;
-  
+
   loading: boolean;
   setRubric: (rubric: any) => void;
   setCriteria: (criteria: any[]) => void;
@@ -94,7 +94,7 @@ export default function RoundsTab({
   setSelectedTrack,
   selectedRubricRoundId,
   setSelectedRubricRoundId,
-  
+
   roundName,
   setRoundName,
   roundOrder,
@@ -111,7 +111,7 @@ export default function RoundsTab({
   rubricName,
   setRubricName,
   handleCreateRound,
-  
+
   rubric,
   criteria,
   editingRubric,
@@ -128,7 +128,7 @@ export default function RoundsTab({
   handleUpdateRubric,
   handleDeleteRubric,
   handleLockRubric,
-  
+
   critCode,
   setCritCode,
   critName,
@@ -145,7 +145,7 @@ export default function RoundsTab({
   handleDeleteCriterion,
   handleStartEditCriterion,
   handleCancelEditCriterion,
-  
+
   levelLabel,
   setLevelLabel,
   levelMinScore,
@@ -156,87 +156,54 @@ export default function RoundsTab({
   setLevelDesc,
   handleAddGradingLevel,
   handleRemoveGradingLevel,
-  
+
   handleCreateRubric,
   setRubric,
   setCriteria,
 }: RoundsTabProps) {
-  
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Column 1: Rounds list & create form */}
       <div className="lg:col-span-1 glass p-6 rounded-2xl flex flex-col justify-between">
         <div>
-          {/* Quick Track Selection in Rounds Tab */}
-          {tracks.length > 0 && (
-            <div className="mb-4">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 font-mono">
-                Chọn Bảng đấu:
-              </label>
-              <select
-                value={selectedTrack?._id || ""}
-                onChange={(e) => {
-                  const track = tracks.find((t) => t._id === e.target.value);
-                  if (track) {
-                    setSelectedTrack(track);
-                    const associatedRound = rounds.find((r) => r._id === track.roundId);
-                    if (associatedRound) {
-                      setSelectedRubricRoundId(associatedRound._id);
-                    } else {
-                      setSelectedRubricRoundId("");
-                      setRubric(null);
-                      setCriteria([]);
-                    }
-                  }
-                }}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
-              >
-                <option value="">-- Chọn bảng đấu --</option>
-                {tracks.map((t: any) => (
-                  <option key={t._id} value={t._id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <h3 className="text-md font-bold text-white mb-4 flex items-center gap-1.5 font-mono">
             <ListOrdered size={16} className="text-indigo-400" />
             <span>Các Vòng thi (Sự kiện)</span>
           </h3>
           <div className="space-y-2 mb-6 max-h-48 overflow-y-auto pr-1">
             {rounds.map((r: any) => (
-                <button
-                  key={r._id}
-                  onClick={() => {
-                    setSelectedRubricRoundId(r._id);
-                  }}
-                  className={`w-full text-left p-3 rounded-xl border text-xs flex justify-between items-center transition-all ${
-                    selectedRubricRoundId === r._id
-                      ? "bg-indigo-600/10 border-indigo-500/50 text-white font-bold"
-                      : "border-slate-800/80 bg-slate-900/10 hover:border-slate-700 text-slate-400"
-                  }`}
-                >
-                  <div>
-                    <p>{r.name}</p>
-                    <p className="text-[9px] text-slate-500 mt-0.5">
-                      Thứ tự: {r.order} | Lấy Top: {r.advanceTopN}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {tracks
-                        .filter((t: any) => t.roundId === r._id)
-                        .map((t: any) => (
-                          <span key={t._id} className="bg-slate-950 px-1.5 py-0.5 rounded text-[8px] border border-slate-800 text-slate-450 font-sans">
-                            {t.name}
-                          </span>
-                        ))}
-                    </div>
+              <button
+                key={r._id}
+                onClick={() => {
+                  setSelectedRubricRoundId(r._id);
+                }}
+                className={`w-full text-left p-3 rounded-xl border text-xs flex justify-between items-center transition-all ${
+                  selectedRubricRoundId === r._id
+                    ? "bg-indigo-600/10 border-indigo-500/50 text-white font-bold"
+                    : "border-slate-800/80 bg-slate-900/10 hover:border-slate-700 text-slate-400"
+                }`}
+              >
+                <div>
+                  <p>{r.name}</p>
+                  <p className="text-[9px] text-slate-500 mt-0.5">
+                    Thứ tự: {r.order} | Lấy Top: {r.advanceTopN}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {tracks
+                      .filter((t: any) => t.roundId === r._id)
+                      .map((t: any) => (
+                        <span
+                          key={t._id}
+                          className="bg-slate-950 px-1.5 py-0.5 rounded text-[8px] border border-slate-800 text-slate-450 font-sans"
+                        >
+                          {t.name}
+                        </span>
+                      ))}
                   </div>
-                  <ChevronRight size={14} />
-                </button>
-              ))}
+                </div>
+                <ChevronRight size={14} />
+              </button>
+            ))}
             {rounds.length === 0 && (
               <p className="text-xs text-slate-500 italic">
                 Chưa cấu hình vòng thi nào cho sự kiện này.
@@ -321,9 +288,7 @@ export default function RoundsTab({
               {rubricTypeOption === "existing" && (
                 <select
                   value={selectedSourceRubricId}
-                  onChange={(e) =>
-                    setSelectedSourceRubricId(e.target.value)
-                  }
+                  onChange={(e) => setSelectedSourceRubricId(e.target.value)}
                   className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono"
                 >
                   <option value="">-- Chọn Rubric cũ --</option>
