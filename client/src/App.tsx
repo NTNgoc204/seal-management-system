@@ -16,6 +16,7 @@ import JudgeDashboard from './pages/JudgeDashboard';
 import JudgeProjects from './pages/JudgeProjects';
 import JudgeScoring from './pages/JudgeScoring';
 import JudgeTeamActivity from './pages/JudgeTeamActivity';
+import JudgeLeaderboard from './pages/JudgeLeaderboard';
 
 function AppContent({ user, roles, handleLoginSuccess, handleLogout }: any) {
   const location = useLocation();
@@ -83,6 +84,7 @@ function AppContent({ user, roles, handleLoginSuccess, handleLogout }: any) {
             <Route path="projects" element={<JudgeProjects />} />
             <Route path="score/:teamId" element={<JudgeScoring />} />
             <Route path="activity/:teamId" element={<JudgeTeamActivity />} />
+            <Route path="leaderboard" element={<JudgeLeaderboard />} />
           </Route>
           
           <Route path="/leaderboard" element={<Leaderboard />} />

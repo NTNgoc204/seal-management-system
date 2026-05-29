@@ -5,7 +5,6 @@ import {
   CalendarPlus,
   FolderKanban,
   Info,
-  Settings2,
   Users,
 } from "lucide-react";
 import TeamsTab from "./TeamsTab";
@@ -1062,17 +1061,6 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       {/* Page Title */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Settings2 className="text-indigo-400" />
-            <span>Thiết lập Cuộc thi (Event Dashboard)</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Cấu hình cuộc thi, bảng đấu, vòng đấu, rubric chấm điểm và phân
-            quyền ban tổ chức.
-          </p>
-        </div>
-
         {/* Quick select event */}
         {events.length > 0 && (
           <div className="flex items-center gap-2">
@@ -1165,7 +1153,6 @@ export default function AdminDashboard({ defaultTab = "admin" }: AdminDashboardP
           )}
         </div>
       )}
-
       {/* TAB NAVIGATION BAR */}
       {defaultTab === "events" && (
         <div className="flex flex-wrap gap-3 border-b border-slate-800/80 pb-3">
