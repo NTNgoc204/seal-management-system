@@ -135,8 +135,8 @@ export default function JudgeProjects() {
       </div>
 
       {/* Selectors & Filter Row */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
-        <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full lg:w-auto">
           <div>
             <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">
               Cuộc thi
@@ -144,7 +144,7 @@ export default function JudgeProjects() {
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-56 font-bold"
+              className="!bg-slate-50 !border-slate-300 rounded-lg !text-slate-800 text-xs px-3 py-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-64 font-bold shadow-sm cursor-pointer"
             >
               {events.map((e: any) => (
                 <option key={e._id} value={e._id}>
@@ -161,7 +161,7 @@ export default function JudgeProjects() {
             <select
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-56 font-bold"
+              className="!bg-slate-50 !border-slate-300 rounded-lg !text-slate-800 text-xs px-3 py-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-80 font-bold shadow-sm cursor-pointer"
             >
               {rounds.map((r: any) => (
                 <option key={r._id} value={r._id}>
@@ -174,9 +174,9 @@ export default function JudgeProjects() {
         </div>
 
         {/* Filter Tab buttons & Search */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
-          <div className="relative w-full sm:w-64">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+        <div className="flex flex-col sm:flex-row gap-4 items-center w-full lg:w-auto">
+          <div className="relative w-full sm:w-72">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-450 z-10">
               <Search size={14} />
             </span>
             <input
@@ -184,7 +184,7 @@ export default function JudgeProjects() {
               placeholder="Tìm kiếm dự án, đội..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-full text-xs pl-9 pr-4 py-2 w-full text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="!bg-slate-50 !border-slate-300 rounded-full text-xs pl-9 pr-4 py-2.5 w-full !text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
             />
           </div>
 
@@ -296,10 +296,10 @@ export default function JudgeProjects() {
                       {/* Column 4: Action */}
                       <td className="px-6 py-5 whitespace-nowrap text-right">
                         <button
-                          onClick={() => navigate(`/judge/score/${team._id}`)}
+                          onClick={() => navigate(`/judge/score/${team._id}?roundId=${selectedRoundId}`)}
                           className={`inline-flex items-center gap-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm ${
                             isGraded
-                              ? "bg-slate-100 border border-slate-200 text-slate-650 hover:bg-slate-200"
+                              ? "bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200"
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                           }`}
                         >

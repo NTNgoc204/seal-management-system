@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Sparkles, 
@@ -15,6 +15,8 @@ import {
 export default function JudgeScoring() {
   const { teamId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryRoundId = searchParams.get('roundId');
   const token = localStorage.getItem('token');
 
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -44,44 +46,40 @@ export default function JudgeScoring() {
   const currentRound = rounds.find((r: any) => r._id === selectedRoundId);
   const isRoundLocked = currentRound?.status === 'completed';
 
-  // Fetch events
+  // Fetch specific team info directly
   useEffect(() => {
-    axios.get('http://localhost:5000/api/events')
+    if (!teamId) return;
+    axios.get(`http://localhost:5000/api/teams/${teamId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
       .then((res: any) => {
-        if (res.data.length > 0) {
-          setSelectedEventId(res.data[0]._id);
+        setTeam(res.data);
+        if (res.data.eventId) {
+          // If populated eventId is an object
+          const evId = res.data.eventId._id || res.data.eventId;
+          setSelectedEventId(evId);
         }
       })
-      .catch((err: any) => console.error(err));
-  }, []);
+      .catch((err: any) => console.error('Error fetching team info:', err));
+  }, [teamId, token]);
 
   // Fetch event details (rounds, tracks)
   useEffect(() => {
     if (!selectedEventId) return;
     axios.get(`http://localhost:5000/api/events/${selectedEventId}`)
       .then((res: any) => {
-        setRounds(res.data.rounds || []);
-        if (res.data.rounds && res.data.rounds.length > 0) {
-          setSelectedRoundId(res.data.rounds[0]._id);
+        const eventRounds = res.data.rounds || [];
+        setRounds(eventRounds);
+        
+        // Select the round based on query parameters or fallback to the first round
+        if (queryRoundId && eventRounds.some((r: any) => r._id === queryRoundId)) {
+          setSelectedRoundId(queryRoundId);
+        } else if (eventRounds.length > 0) {
+          setSelectedRoundId(eventRounds[0]._id);
         }
       })
-      .catch((err: any) => console.error(err));
-  }, [selectedEventId]);
-
-  // Fetch specific team info
-  useEffect(() => {
-    if (!selectedEventId || !teamId) return;
-    axios.get(`http://localhost:5000/api/teams/all/${selectedEventId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then((res: any) => {
-        const found = res.data.find((t: any) => t._id === teamId);
-        if (found) {
-          setTeam(found);
-        }
-      })
-      .catch((err: any) => console.error(err));
-  }, [selectedEventId, teamId, token]);
+      .catch((err: any) => console.error('Error fetching event details:', err));
+  }, [selectedEventId, queryRoundId]);
 
   // Fetch rubric/criteria
   useEffect(() => {
@@ -231,11 +229,14 @@ export default function JudgeScoring() {
     setSaving(true);
     setMessage({ type: '', text: '' });
 
-    const details = Object.entries(scores).map(([critId, val]: [string, any]) => ({
-      criterionId: critId,
-      scoreValue: parseFloat(val.scoreValue),
-      comment: val.comment
-    }));
+    const details = criteria.map((c: any) => {
+      const val = scores[c._id] || {};
+      return {
+        criterionId: c._id,
+        scoreValue: parseFloat(val.scoreValue),
+        comment: val.comment || ''
+      };
+    });
 
     if (details.some(d => isNaN(d.scoreValue))) {
       setMessage({ type: 'error', text: 'Vui lòng điền đầy đủ điểm số cho tất cả tiêu chí.' });
@@ -280,7 +281,7 @@ export default function JudgeScoring() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/judge/projects')}
-            className="text-blue-650 hover:text-blue-700 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+            className="text-blue-600 hover:text-blue-700 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
           >
             <ArrowLeft size={14} />
             <span>Danh sách dự án</span>
@@ -316,7 +317,7 @@ export default function JudgeScoring() {
                   Chi tiết đề tài của đội thi
                 </span>
                 <h2 className="text-2xl font-black text-slate-800 mt-2 uppercase">{team.name}</h2>
-                <p className="text-xs font-bold text-slate-650 mt-1">Đề tài: {team.topicSubmission?.title || 'Chưa đăng ký'}</p>
+                <p className="text-xs font-bold text-slate-600 mt-1">Đề tài: {team.topicSubmission?.title || 'Chưa đăng ký'}</p>
               </div>
 
               {team.topicSubmission?.demoUrl && (
@@ -340,7 +341,7 @@ export default function JudgeScoring() {
             )}
 
             {isRoundLocked && (
-              <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 p-4 rounded-xl text-xs flex items-center gap-2 font-bold uppercase tracking-wider shadow-sm">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs flex items-center gap-2 font-bold uppercase tracking-wider shadow-sm">
                 <Lock size={16} className="shrink-0" />
                 <span>Vòng đấu này đã đóng và khóa điểm. Không thể chỉnh sửa điểm.</span>
               </div>
@@ -400,7 +401,7 @@ export default function JudgeScoring() {
                             value={scores[c._id]?.scoreValue || ''}
                             onChange={e => handleScoreChange(c._id, 'scoreValue', e.target.value)}
                             disabled={isRoundLocked}
-                            className="bg-white border border-slate-300 rounded-lg text-slate-850 text-center text-xs px-2 py-2 w-24 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none disabled:opacity-50 font-bold"
+                            className="bg-white border border-slate-300 rounded-lg text-slate-800 text-center text-sm px-3 py-2.5 w-24 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none disabled:opacity-50 font-bold transition-all shadow-sm"
                           />
                           <span className="text-[10px] text-slate-400 font-mono">/ {c.maxScore}đ</span>
                         </div>
@@ -446,7 +447,7 @@ export default function JudgeScoring() {
                           value={scores[c._id]?.comment || ''}
                           onChange={e => handleScoreChange(c._id, 'comment', e.target.value)}
                           disabled={isRoundLocked}
-                          className="bg-white border border-slate-250 rounded-lg text-slate-700 text-xs px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50"
+                          className="bg-white border border-slate-300 rounded-lg text-slate-800 text-xs px-3.5 py-2.5 w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 transition-all shadow-sm placeholder:text-slate-400"
                         />
                       </div>
                     </div>
@@ -464,7 +465,7 @@ export default function JudgeScoring() {
                     value={overallComment}
                     onChange={e => setOverallComment(e.target.value)}
                     disabled={isRoundLocked}
-                    className="bg-white border border-slate-350 rounded-lg text-slate-700 text-xs px-3 py-2.5 w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 font-sans"
+                    className="bg-white border border-slate-300 rounded-lg text-slate-800 text-xs px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 font-sans transition-all shadow-sm placeholder:text-slate-400"
                   ></textarea>
                 </div>
 
@@ -560,23 +561,23 @@ export default function JudgeScoring() {
 
                     {/* Historical Synthesis */}
                     <div className="space-y-1">
-                      <span className="text-[9px] text-slate-550 font-bold uppercase tracking-wider block font-mono">Tổng quan đánh giá</span>
-                      <p className="text-slate-650 bg-slate-50 p-3 rounded-lg border border-slate-150 text-[10px] leading-relaxed font-sans">
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block font-mono">Tổng quan đánh giá</span>
+                      <p className="text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200 text-[10px] leading-relaxed font-sans">
                         {aiInsight.overall_picture?.historical_synthesis}
                       </p>
                     </div>
 
                     {/* Qualitative criteria review */}
                     <div className="space-y-2">
-                      <span className="text-[9px] text-slate-550 font-bold uppercase tracking-wider block font-mono">Đánh giá định tính (Stitch R1-R2)</span>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block font-mono">Đánh giá định tính (Stitch R1-R2)</span>
                       <div className="space-y-1.5 text-[10px]">
                         {Object.entries(aiInsight.criteria_comments || {}).map(([key, value]: [string, any]) => (
-                          <div key={key} className="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-150">
+                          <div key={key} className="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-200">
                             <span className="font-bold text-slate-700">{key}</span>
                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                              value.grade === 'Xuất sắc' ? 'bg-emerald-50 text-emerald-700 border border-emerald-250' :
-                              value.grade === 'Tốt' ? 'bg-blue-50 text-blue-700 border border-blue-250' :
-                              value.grade === 'Khá' ? 'bg-amber-50 text-amber-700 border border-amber-250' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                              value.grade === 'Xuất sắc' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                              value.grade === 'Tốt' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              value.grade === 'Khá' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
                             }`}>
                               {value.grade}
                             </span>

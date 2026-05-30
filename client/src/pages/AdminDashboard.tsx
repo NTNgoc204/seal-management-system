@@ -97,16 +97,11 @@ export default function AdminDashboard({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
-  // Tab management state
-<<<<<<< Updated upstream
   const [activeTab, setActiveTab] = useState<
     "admin" | "events" | "teams" | "rounds" | "tracks" | "github"
   >(defaultTab);
-=======
-  const [activeTab, setActiveTab] = useState<'admin' | 'events' | 'teams' | 'tracks' | 'rounds' | 'github'>(defaultTab);
   // Sidebar collapse state (for premium slide effect)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
->>>>>>> Stashed changes
+  // const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Edit Event States
   const [editEventName, setEditEventName] = useState("");

@@ -219,7 +219,7 @@ export default function JudgeDashboard() {
       </div>
 
       {/* Selectors Row */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div>
           <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">
             Cuộc thi
@@ -227,7 +227,7 @@ export default function JudgeDashboard() {
           <select
             value={selectedEventId}
             onChange={(e) => setSelectedEventId(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-56 font-bold"
+            className="!bg-slate-50 !border-slate-300 rounded-lg !text-slate-800 text-xs px-3 py-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-64 font-bold shadow-sm cursor-pointer"
           >
             {events.map((e: any) => (
               <option key={e._id} value={e._id}>
@@ -244,7 +244,7 @@ export default function JudgeDashboard() {
           <select
             value={selectedRoundId}
             onChange={(e) => setSelectedRoundId(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-xs px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-56 font-bold"
+            className="!bg-slate-50 !border-slate-300 rounded-lg !text-slate-800 text-xs px-3 py-2 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none w-80 font-bold shadow-sm cursor-pointer"
           >
             {rounds.map((r: any) => (
               <option key={r._id} value={r._id}>
@@ -329,7 +329,7 @@ export default function JudgeDashboard() {
             </div>
           </div>
           <button
-            onClick={() => navigate(`/judge/score/${lastGradedTeamId}`)}
+            onClick={() => navigate(`/judge/score/${lastGradedTeamId}?roundId=${selectedRoundId}`)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider shrink-0"
           >
             Vào Bàn Chấm Điểm
@@ -393,7 +393,7 @@ export default function JudgeDashboard() {
 
                 <button
                   onClick={() => navigate(`/judge/activity/${c.teamId}`)}
-                  className="flex items-center gap-1.5 text-[10px] font-bold text-blue-650 hover:text-white border border-blue-600/30 hover:border-blue-600 hover:bg-blue-600 bg-blue-50/50 px-4 py-2 rounded-lg transition-all uppercase tracking-wider shrink-0 shadow-sm"
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 hover:text-white border border-blue-600/30 hover:border-blue-600 hover:bg-blue-600 bg-blue-50/50 px-4 py-2 rounded-lg transition-all uppercase tracking-wider shrink-0 shadow-sm"
                 >
                   <span>Hoạt động</span>
                   <ArrowRight size={12} />
