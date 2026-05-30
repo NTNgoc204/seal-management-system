@@ -7,7 +7,6 @@ import {
   Lock,
   RefreshCw,
   Radio,
-  Users,
 } from "lucide-react";
 
 export default function Leaderboard({
